@@ -1,0 +1,22 @@
+import os
+
+from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
+from sqlalchemy.orm import relation
+from sqlalchemy.orm.collections import attribute_mapped_collection
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.schema import ForeignKey, Column, Index, UniqueConstraint, ForeignKeyConstraint
+from sqlalchemy.sql import and_, or_, not_, null
+from sqlalchemy.sql.expression import desc, asc
+from sqlalchemy.types import *
+from batteries.model import Model
+from batteries.model.types import UTCDateTime, UUID
+
+class User(Model):
+    __tablename__ =     'user'
+    __table_args__ =    {'mysql_engine': 'InnoDB'}
+
+    id =                Column(Integer, primary_key=True)
+    name =              Column(Unicode(30))
+
+    ctime =             Column(UTCDateTime)
+    mtime =             Column(UTCDateTime)
