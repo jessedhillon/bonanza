@@ -13,7 +13,7 @@ Data experiments in real estate
 
 #### Ubuntu
 
-    $ sudo aptitude install postgresql`
+    $ sudo aptitude install postgresql
     $ sudo aptitude install postgresql-9.3-postgis-2.1` or latest version
 
 #### Mac

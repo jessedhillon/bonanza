@@ -12,6 +12,8 @@ down_revision = ${repr(down_revision)}
 
 from alembic import op
 import sqlalchemy as sa
+from batteries.model.types import Ascii, UTCDateTime
+from geoalchemy2 import Geometry
 ${imports if imports else ""}
 
 def upgrade():
