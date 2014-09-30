@@ -7,6 +7,10 @@ readme = open(os.path.join(here, 'README.rst')).read()
 changes = open(os.path.join(here, 'CHANGES.rst')).read()
 
 requires = [
+    'paster',
+    'requests',
+    'pyquery',
+    'celery',
     'psycopg2',
     'pyramid',
     'SQLAlchemy',
@@ -51,6 +55,7 @@ setup(
         ],
         'console_scripts': [
             'populate_bonanza = bonanza.scripts.populate:main',
+            'consumer = bonanza.scripts.consumer:main',
         ]
     },
 )
