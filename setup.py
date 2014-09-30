@@ -21,7 +21,8 @@ requires = [
     'python-dateutil<2.0',
     'sqlalchemy-batteries',
     'docopt',
-    'geoalchemy',
+    'alembic',
+    'geoalchemy2',
 ]
 
 setup(

@@ -8,15 +8,14 @@ from sqlalchemy.schema import ForeignKey, Column, Index, UniqueConstraint, Forei
 from sqlalchemy.sql import and_, or_, not_, null
 from sqlalchemy.sql.expression import desc, asc
 from sqlalchemy.types import *
+from geoalchemy2 import Geometry
 from batteries.model import Model
+from batteries.model.hashable import Hashable, HashableKey, HashableReference
+from batteries.model.recordable import Recordable
 from batteries.model.types import UTCDateTime, UUID
 
-class User(Model):
-    __tablename__ =     'user'
-    __table_args__ =    {'mysql_engine': 'InnoDB'}
 
-    id =                Column(Integer, primary_key=True)
-    name =              Column(Unicode(30))
+class Listing(Hashable, Recordable, Model):
+    _key = HashableKey()
 
-    ctime =             Column(UTCDateTime)
-    mtime =             Column(UTCDateTime)
+    location = Column(Geometry('POINT'))
