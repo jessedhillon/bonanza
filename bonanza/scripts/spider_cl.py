@@ -2,6 +2,7 @@ import requests
 from urlparse import urlparse, urlsplit, urlunsplit
 from pyquery import PyQuery
 
+
 states = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID',
     'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS',
@@ -46,6 +47,7 @@ for abbrev in states:
             'region': urlparse(url).netloc.split('.')[0],
             'name': name,
             'endpoint': discover_endpoint(url),
+            'state': abbrev,
         })
 
 import pdb; pdb.set_trace()

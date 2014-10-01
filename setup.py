@@ -10,7 +10,7 @@ requires = [
     'paster',
     'requests',
     'pyquery',
-    'celery',
+    'celery[librabbitmq]',
     'psycopg2',
     'pyramid',
     'SQLAlchemy',
