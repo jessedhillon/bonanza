@@ -3,6 +3,9 @@ def setup(env):
     import atexit
     import os
     import sys
+    from pprint import pprint
+    import bonanza.scripts.common as common
+    import bonanza.models as models
 
     sys.ps1 = 'py(bonanza)> '
     sys.ps2 = '  (bonanza)> '
@@ -28,3 +31,7 @@ def setup(env):
 
     # anything not deleted (sys and os) will remain in the interpreter session
     del atexit, readline, rlcompleter, save_history, history_path
+
+    env['pp'] = pprint
+    env['configure'] = common.configure
+    env['models'] = models

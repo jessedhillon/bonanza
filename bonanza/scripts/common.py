@@ -6,12 +6,14 @@ from pyramid.request import Request
 from pyramid.settings import asbool
 
 
-logger = logging.getLogger(__name__)
+logger = None
 
 
 def configure(config_uri, **kwargs):
+    global logger
     settings = paster.get_appsettings(config_uri)
     paster.setup_logging(config_uri)
+    logger = logging.getLogger(__name__)
 
     request = kwargs.get('request')
     if request is None and 'base_url' in kwargs:
@@ -22,7 +24,8 @@ def configure(config_uri, **kwargs):
 
 
 def post_mortem(settings):
-    logger.fatal(u"unhandled exception", exc_info=sys.exc_info())
+    if logger:
+        logger.fatal(u"unhandled exception", exc_info=sys.exc_info())
 
     if asbool(settings.get('bonanza.debug')):
         pdb.post_mortem(sys.exc_info()[2])

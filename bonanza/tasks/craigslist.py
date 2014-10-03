@@ -17,8 +17,11 @@ class JsonSearchTask(Task):
     def run(self, region, endpoint, name, state):
         self.subdomain = region
         self.endpoint = endpoint
+        logger.info("processing subdomain", extra={
+            'endpoint': self.endpoint,
+            'subdomain': self.subdomain,
+        })
 
-        logging.info("fetching {}".format(self.url))
         r = requests.get(self.url, headers=self.headers)
 
         for l in r.json()[0]:
@@ -29,12 +32,8 @@ class JsonSearchTask(Task):
 
     @property
     def url(self):
-        return urlunsplit((
-            "http",
-            "{}.craigslist.org".format(self.subdomain),
-            self.endpoint,
-            "", ""
-        ))
+        return urlunsplit(("http", "{}.craigslist.org".format(self.subdomain),
+                           self.endpoint, "", ""))
 
 
 class SaveListingTask(Task):

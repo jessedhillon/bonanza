@@ -1,10 +1,7 @@
 """Consumer for listing sources
 
 Usage:
-    consumer craigslist <region> [--regions] <config_uri>
-
-Options:
-    -r --regions FILE    read region definitions from FILE
+    consumer craigslist <region> <config_uri>
 """
 
 import os
