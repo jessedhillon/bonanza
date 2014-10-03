@@ -1,5 +1,3 @@
-import os
-
 from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
 from sqlalchemy.orm import relation
 from sqlalchemy.orm.collections import attribute_mapped_collection
