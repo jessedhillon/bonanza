@@ -3,6 +3,7 @@ def setup(env):
     import atexit
     import os
     import sys
+    import transaction
     from pprint import pprint
     import bonanza.scripts.common as common
     import bonanza.models as models
@@ -35,3 +36,4 @@ def setup(env):
     env['pp'] = pprint
     env['configure'] = common.configure
     env['models'] = models
+    env['transaction'] = transaction
