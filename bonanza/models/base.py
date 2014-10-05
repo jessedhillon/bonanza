@@ -10,11 +10,10 @@ from geoalchemy2 import Geometry
 from batteries.model import Model
 from batteries.model.hashable import Hashable, HashableKey
 from batteries.model.recordable import Recordable
+from batteries.model.geometric import Geometric
 
-from bonanza.lib.util import geoproperty
 
-
-class CraigslistListing(Hashable, Recordable, Model):
+class CraigslistListing(Hashable, Recordable, Geometric, Model):
     _key = HashableKey()
 
     id = Column(Unicode(20), nullable=False)
@@ -26,5 +25,4 @@ class CraigslistListing(Hashable, Recordable, Model):
     posted_date = Column(Date, nullable=False)
     ask = Column(Numeric(12, scale=2), nullable=False)
 
-    _location = Column('location', Geometry('POINT'))
-    location = geoproperty('_location', 'point')
+    location = Column('location', Geometry('POINT'))
