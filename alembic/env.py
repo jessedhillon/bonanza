@@ -35,7 +35,9 @@ def excluder(config):
     excluded = excluded_tables(config)
 
     def include_object(object, name, type_, reflected, compare_to):
-        return not (type_ == 'table' and name not in excluded)
+        if type_ == 'table' and name in excluded:
+            return False
+        return True
     return include_object
 
 
