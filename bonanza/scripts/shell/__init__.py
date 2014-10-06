@@ -2,7 +2,6 @@ def setup(env):
     import sys
     import atexit
     import os
-    import sys
     import transaction
     from pprint import pprint
     import bonanza.scripts.common as common

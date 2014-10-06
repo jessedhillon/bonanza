@@ -31,7 +31,7 @@ $ psql bonanza
 bonanza# create extension postgis;
 bonanza# create extension postgis_topology;
 bonanza# create extension fuzzystrmatch;
-bonanza# create extension postgis_tiger_decoder;
+bonanza# create extension postgis_tiger_geocoder;
 ```
 
 #### Run migrations

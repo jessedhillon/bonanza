@@ -10,7 +10,7 @@ import json
 from docopt import docopt
 
 import bonanza.scripts.common
-import bonanza.tasks.common
+import bonanza.tasks.common # flake8: noqa
 import bonanza.scripts as scripts
 import bonanza.tasks as tasks
 import bonanza.tasks.craigslist as craigslist
@@ -25,7 +25,7 @@ def main(argv=sys.argv):
 
         consumer(arguments, settings)
 
-    except Exception as e:
+    except Exception:
         if settings is None:
             settings = dict({
                 'bonanza.debug': True,
