@@ -27,6 +27,18 @@ target_metadata = models.Model.metadata
 # ... etc.
 
 
+def excluded_tables(config):
+    return config.get('exclude_tables', '').split()
+
+
+def excluder(config):
+    excluded = excluded_tables(config)
+
+    def include_object(object, name, type_, reflected, compare_to):
+        return not (type_ == 'table' and name not in excluded)
+    return include_object
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -40,7 +52,11 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        include_object=excluder(config.get_section(config.config_ini_section))
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -53,6 +69,7 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
+
     engine = engine_from_config(
         config.get_section(config.config_ini_section),
         prefix='sqlalchemy.',
@@ -61,7 +78,8 @@ def run_migrations_online():
     connection = engine.connect()
     context.configure(
         connection=connection,
-        target_metadata=target_metadata
+        target_metadata=target_metadata,
+        include_object=excluder(config.get_section(config.config_ini_section))
     )
 
     try:

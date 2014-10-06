@@ -25,4 +25,4 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
     posted_date = Column(Date, nullable=False)
     ask = Column(Numeric(12, scale=2), nullable=False)
 
-    location = Column('location', Geometry('POINT'))
+    location = Column('location', Geometry('POINT', 4269))
