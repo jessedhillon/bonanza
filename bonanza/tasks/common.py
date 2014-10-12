@@ -1,44 +1,36 @@
-from celery import Celery
+import logging
 from ConfigParser import ConfigParser
-from collections import namedtuple
-from pyramid.settings import asbool
+
+from kombu import Connection, Exchange, Queue
+from kombu.pools import connections, producers
 
 
-_brokers = {}
+logger = logging.getLogger(__name__)
+_connections = {}
 
 
 def configure(config_uri, app_name):
-    if app_name in _brokers:
-        return _brokers[app_name]
+    global _connections
 
     settings = ConfigParser()
     settings.read([config_uri])
-    section = dict(settings.items('celery:{}'.format(app_name)))
-    config = get_configuration_object(section)
-
-    celery = Celery(app_name)
-    celery.config_from_object(config)
-    _brokers[app_name] = celery
-    return celery
+    section = dict(settings.items('kombu:{}'.format(app_name)))
+    _connections[app_name] = section['broker_url']
+    logger.info("configuring broker {broker_url}".format(**section))
 
 
-def get_configuration_object(settings):
-    settings = {k.lower(): v for k, v in settings.items()}
-    keys = [k.upper() for k in settings.keys()]
-
-    if 'CELERY_ACCEPT_CONTENT' in keys:
-        v = _make_list(settings['celery_accept_content'])
-        settings['celery_accept_content'] = v
-
-    if 'CELERY_ALWAYS_EAGER' in keys:
-        b = asbool(settings['celery_always_eager'])
-        settings['celery_always_eager'] = b
-
-    CeleryConfig = namedtuple('CeleryConfig', keys)
-    config = CeleryConfig(**{k.upper(): v for k, v in settings.items()})
-
-    return config
+def get_connection(app_name, block=True):
+    url = _connections[app_name]
+    return connections[Connection(url)].acquire(block)
 
 
-def _make_list(s):
-    return [w.strip() for w in s.split()]
+def get_producer(connection, block=True):
+    return producers[connection].acquire(block)
+
+
+def get_exchange(name, type, **kwargs):
+    return Exchange(name, type, **kwargs)
+
+
+def get_queue(name, exchange, **kwargs):
+    return Queue(name, exchange, **kwargs)

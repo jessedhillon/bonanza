@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
-readme = open(os.path.join(here, 'README.rst')).read()
+readme = open(os.path.join(here, 'README.md')).read()
 changes = open(os.path.join(here, 'CHANGES.rst')).read()
 
 requires = [
@@ -56,6 +56,7 @@ setup(
         'console_scripts': [
             'populate_bonanza = bonanza.scripts.populate:main',
             'consumer = bonanza.scripts.consumer:main',
+            'producer = bonanza.scripts.producer:main',
         ]
     },
 )

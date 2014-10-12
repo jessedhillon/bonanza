@@ -5,7 +5,9 @@ from zope.sqlalchemy import ZopeTransactionExtension
 from batteries.model import Model, initialize_model
 
 logger = logging.getLogger(__name__)
+Session = None
 session = None
+engine = None
 
 Model.metadata.naming_convention = {
     'ix': 'ix_%(column_0_label)s',
@@ -16,11 +18,16 @@ Model.metadata.naming_convention = {
 }
 
 
-def initialize(engine, create=False, drop=False):
+def initialize(e, create=False, drop=False, **kwargs):
+    global Session
     global session
+    global engine
     import bonanza.models.base
 
-    session = scoped_session(sessionmaker(extension=ZopeTransactionExtension()))
+    Session = sessionmaker(**kwargs)
+
+    engine = e
+    session = scoped_session(Session)
     initialize_model(session, engine)
 
     if drop:
