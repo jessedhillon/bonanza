@@ -1,5 +1,6 @@
 import logging
 import requests
+from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 import random
 from urlparse import urlunsplit
 from datetime import datetime
@@ -76,7 +77,6 @@ class UrlProducerTask(Task):
             'endpoint': r['endpoint'],
             'name': r['name'],
             'state': r['state'],
-            'is_geocluster': False
         }
         producer.publish(data,
                          exchange=self.get_exchange('requests'),
@@ -118,19 +118,17 @@ class JsonSearchTask(Task):
         self.acquire_token()
 
         url = self.make_url(body['subdomain'], body['endpoint'])
+        extra = {
+            'endpoint': body['endpoint'],
+            'subdomain': body['subdomain']
+        }
 
         if body.get('geocluster_id'):
-            logger.debug("processing geocluster", extra={
-                'endpoint': body['endpoint'],
-                'subdomain': body['subdomain'],
-                'geocluster_id': body['geocluster_id'],
-            })
+            extra['geocluster_id'] = body['geocluster_id']
+            logger.debug("processing geocluster", extra=extra)
         else:
-            logger.info("processing subdomain {}".format(body['subdomain']),
-                        extra={
-                            'endpoint': body['endpoint'],
-                            'subdomain': body['subdomain']
-                        })
+            logger.info("processing subdomain {subdomain}".format(**body),
+                        extra=extra)
 
         try:
             r = requests.get(url, headers=self.headers)
@@ -173,8 +171,8 @@ class JsonSearchTask(Task):
                                      self.get_queue('listings')])
 
             message.ack()
-        except requests.HTTPError, requests.ConnectionError:
-            logger.exception("HTTP exception")
+        except (HTTPError, ConnectionError, ConnectTimeout):
+            logger.exception("request exception")
 
     @staticmethod
     def make_url(subdomain, endpoint):
