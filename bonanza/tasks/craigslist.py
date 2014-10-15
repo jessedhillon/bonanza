@@ -32,16 +32,13 @@ class UrlProducerTask(Task):
 
             self.process_regions()
 
-    @property
-    def regions(self):
-        with open(self.region_file, 'r') as f:
-            return json.loads(f.read())
-
     def process_regions(self):
-        random.shuffle(self.regions)
+        with open(self.region_file, 'r') as f:
+            regions = json.loads(f.read())
+            random.shuffle(regions)
 
         with common.get_producer(self.connection) as producer:
-            for i, r in enumerate(self.regions):
+            for i, r in enumerate(regions):
                 self.produce_region(r, producer)
 
     def produce_region(self, r, producer):
@@ -136,6 +133,7 @@ class JsonSearchTask(Task):
             message.ack()
         except (HTTPError, ConnectionError, ConnectTimeout):
             logger.exception("request exception")
+            message.requeue()
 
     @staticmethod
     def make_url(subdomain, endpoint):
