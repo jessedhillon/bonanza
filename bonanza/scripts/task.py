@@ -75,12 +75,22 @@ def run_task(arguments, settings):
         t.start()
         threads.append(t)
 
-    def signal_handler(signal, frame):
-        logger.warn("caught control-C, terminating threads")
-        for t in threads:
-            t.stop()
-
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, make_signal_handler(threads))
 
     while threading.active_count() > 1:
         time.sleep(0.5)
+
+
+sigint_received = False
+def make_signal_handler(threads):
+    def signal_handler(signal, frame):
+        global sigint_received
+        if not sigint_received:
+            logger.warn("caught control-C, terminating threads")
+            sigint_received = True
+            for t in threads:
+                t.stop()
+        else:
+            sys.exit("Interrupt")
+
+    return signal_handler
