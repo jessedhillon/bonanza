@@ -42,7 +42,7 @@ class UrlProducerTask(Task):
                 self.produce_region(r, producer)
 
     def produce_region(self, r, producer):
-        logger.info("enqueueing subdomain {}".format(r['region']))
+        logger.info("enqueueing subdomain", extra={'region': r})
 
         data = {
             'subdomain': r['region'],
@@ -84,21 +84,21 @@ class JsonSearchTask(Task):
             'subdomain': body['subdomain']
         }
 
-        if body.get('geocluster_id'):
-            extra['geocluster_id'] = body['geocluster_id']
-            logger.info("processing geocluster", extra=extra)
-        else:
-            logger.info("processing subdomain", extra=extra)
-
         try:
             r = requests.get(url, headers=self.headers)
+            results, query = r.json()
 
-            count = len(r.json()[0])
-            logger.info("processing {} results".format(count), extra={
-                'count': count
+            extra.update({
+                'count': len(results),
+                'query': query,
             })
+            if body.get('geocluster_id'):
+                extra['geocluster_id'] = body['geocluster_id']
+                logger.info("processing geocluster", extra=extra)
+            else:
+                logger.info("processing subdomain", extra=extra)
 
-            for l in r.json()[0]:
+            for l in results:
                 if 'GeoCluster' in l:
                     data = {
                         'subdomain': body['subdomain'],
@@ -188,14 +188,12 @@ class ListingProcessorTask(Task):
             return None
 
     def update_listing(self, subdomain, listing, data):
-        logger.info("updating listing {PostingID}".
-                    format(**data), extra={'listing_data': data})
+        logger.info("updating listing", extra={'listing': data})
         self.copy_json(listing, data)
         listing.subdomain = subdomain
 
     def insert_listing(self, subdomain, data):
-        logger.info("inserting listing {PostingID}".
-                    format(**data), extra={'listing_data': data})
+        logger.info("inserting listing", extra={'listing': data})
         listing = CraigslistListing()
         self.copy_json(listing, data)
         listing.subdomain = subdomain
