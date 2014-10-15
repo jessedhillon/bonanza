@@ -55,6 +55,7 @@ setup(
         ],
         'console_scripts': [
             'populate_bonanza = bonanza.scripts.populate:main',
+            'task = bonanza.scripts.task:main',
             'consumer = bonanza.scripts.consumer:main',
             'producer = bonanza.scripts.producer:main',
         ]

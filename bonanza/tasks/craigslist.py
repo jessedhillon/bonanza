@@ -1,15 +1,11 @@
 import logging
+import json
 import requests
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 import random
 from urlparse import urlunsplit
 from datetime import datetime
-from dateutil.rrule import rrule, DAILY, MINUTELY
-from threading import Lock
-import time
 from sqlalchemy.orm.exc import NoResultFound
-
-from kombu.utils.limits import TokenBucket
 
 from bonanza.tasks import Task
 import bonanza.tasks.common as common
@@ -21,51 +17,30 @@ logger = logging.getLogger(__name__)
 
 
 class UrlProducerTask(Task):
-    schedule = {
-        'freq': DAILY,
-        'byhour': 4,
-        'byminute': 0,
-        'bysecond': 0,
-    }
-
-    @property
-    def next_time(self):
-        rule = rrule(**self.schedule)
-        now = datetime.now()
-
-        for dt in rule:
-            if dt > now:
-                return dt
-
-    def sleep(self):
-        diff = self.next_time - datetime.now()
-        logger.info("{} next run in {}s".format(self.name,
-                                                diff.total_seconds()))
-
-        while diff.total_seconds() > 0:
-            if self.is_stopped:
-                return
-
-            diff = self.next_time - datetime.now()
-            time.sleep(0.5)
+    first_run = False
 
     def run(self):
-        first_run = True
-
+        self.connect()
         while True:
-            if first_run:
-                first_run = False
+            if self.first_run:
+                self.first_run = False
             else:
-                self.sleep()
+                self.sleep_until(self.next_occurrence)
+
             if self.is_stopped:
                 return
 
             self.process_regions()
 
+    @property
+    def regions(self):
+        with open(self.region_file, 'r') as f:
+            return json.loads(f.read())
+
     def process_regions(self):
         random.shuffle(self.regions)
 
-        with common.get_producer(self.broker) as producer:
+        with common.get_producer(self.connection) as producer:
             for i, r in enumerate(self.regions):
                 self.produce_region(r, producer)
 
@@ -80,7 +55,7 @@ class UrlProducerTask(Task):
         }
         producer.publish(data,
                          exchange=self.get_exchange('requests'),
-                         routing_key='listing.request',
+                         routing_key='requests.craigslist.subdomain',
                          declare=[self.get_queue('requests')])
 
 
@@ -90,29 +65,18 @@ class JsonSearchTask(Task):
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/37.0.2062.120 Safari/537.36',
     }
-    token_lock = Lock()
-    tokens = TokenBucket(0.25, capacity=3)
 
     def run(self):
-        with self.broker.Consumer(self.get_queue('requests'), callbacks=[self.receive]):
+        self.connect()
+        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
+
+        with self.connection.Consumer(queues=[self.get_queue('requests')],
+                                      callbacks=[self.receive],
+                                      channel=self.channel):
             while True:
                 if self.is_stopped:
                     return
-                self.broker.drain_events()
-
-    def acquire_token(self, block=True):
-        self.token_lock.acquire()
-        if self.tokens.can_consume():
-            self.token_lock.release()
-            return True
-        else:
-            self.token_lock.release()
-            if block:
-                wait = self.tokens.expected_time()
-                time.sleep(wait)
-                self.acquire_token(block)
-            else:
-                return self.tokens.expected_time()
+                self.connection.drain_events()
 
     def receive(self, body, message):
         self.acquire_token()
@@ -125,19 +89,17 @@ class JsonSearchTask(Task):
 
         if body.get('geocluster_id'):
             extra['geocluster_id'] = body['geocluster_id']
-            logger.debug("processing geocluster", extra=extra)
+            logger.info("processing geocluster", extra=extra)
         else:
-            logger.info("processing subdomain {subdomain}".format(**body),
-                        extra=extra)
+            logger.info("processing subdomain", extra=extra)
 
         try:
             r = requests.get(url, headers=self.headers)
 
-            if not body.get('geocluster_id'):
-                count = len(r.json()[0])
-                logger.info("processing {} results".format(count), extra={
-                    'count': count
-                })
+            count = len(r.json()[0])
+            logger.info("processing {} results".format(count), extra={
+                'count': count
+            })
 
             for l in r.json()[0]:
                 if 'GeoCluster' in l:
@@ -149,24 +111,25 @@ class JsonSearchTask(Task):
                         'geocluster_id': l['GeoCluster']
                     }
 
-                    with common.get_producer(self.broker) as producer:
+                    with common.get_producer(self.connection) as producer:
                         producer.publish(
                             data,
                             exchange=self.get_exchange('requests'),
-                            routing_key='listing.request',
+                            routing_key='requests.craigslist.geocluster',
                             declare=[self.get_exchange('requests'),
-                                     self.get_queue('requests')])
+                                     self.get_queue('requests'),
+                                     self.get_queue('geocluster_requests')])
                 else:
                     data = {
                         'subdomain': body['subdomain'],
                         'data': l,
                     }
 
-                    with common.get_producer(self.broker) as producer:
+                    with common.get_producer(self.connection) as producer:
                         producer.publish(
                             data,
                             exchange=self.get_exchange('listings'),
-                            routing_key='listing.craigslist',
+                            routing_key='listings.craigslist',
                             declare=[self.get_exchange('listings'),
                                      self.get_queue('listings')])
 
@@ -180,20 +143,26 @@ class JsonSearchTask(Task):
                            endpoint, "", ""))
 
 
-class ListingConsumerTask(Task):
+class ListingProcessorTask(Task):
     srid = 4326
 
     def __init__(self, *args, **kwargs):
-        super(ListingConsumerTask, self).__init__(*args, **kwargs)
+        super(ListingProcessorTask, self).__init__(*args, **kwargs)
         self.conn = models.engine.connect()
         self.session = models.Session(bind=self.conn)
 
     def run(self):
-        with self.broker.Consumer(self.get_queue('listings'), callbacks=[self.receive]):
+        self.connect()
+        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
+
+        with self.connection.Consumer(
+                queues=[self.get_queue('listings')],
+                callbacks=[self.receive],
+                channel=self.channel):
             while True:
                 if self.is_stopped:
                     break
-                self.broker.drain_events()
+                self.connection.drain_events()
 
         self.session.close()
         self.conn.close()
@@ -221,12 +190,14 @@ class ListingConsumerTask(Task):
             return None
 
     def update_listing(self, subdomain, listing, data):
-        logger.debug("updating listing {PostingID}".format(**data), extra={'listing_data': data})
+        logger.info("updating listing {PostingID}".
+                    format(**data), extra={'listing_data': data})
         self.copy_json(listing, data)
         listing.subdomain = subdomain
 
     def insert_listing(self, subdomain, data):
-        logger.debug("inserting listing {PostingID}".format(**data), extra={'listing_data': data})
+        logger.info("inserting listing {PostingID}".
+                    format(**data), extra={'listing_data': data})
         listing = CraigslistListing()
         self.copy_json(listing, data)
         listing.subdomain = subdomain
