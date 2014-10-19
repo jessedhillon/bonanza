@@ -1,0 +1,17 @@
+---
+- name: deinstall packages
+  apt:
+    pkg: "{{ item }}"
+    purge: True
+    state: absent
+  with_items: deinstall
+
+- name: update package sources
+  apt:
+    update_cache: yes
+
+- name: install packages
+  apt:
+    pkg: "{{ item.name }}"
+    state: present
+  with_items: install

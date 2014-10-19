@@ -1,0 +1,11 @@
+---
+aws:
+  access_key_id: AKIAJBNNUTPNSD5ZX6VQ
+  secret_access_key: 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
+  keypair: jessedhillon-bonanza
+  instance_type: t2.micro
+  security_group: production-worker
+  image: ami-9eaa1cf6  # ubuntu 14.04 amd64 hvm
+  subnet_id: subnet-8df534d4
+  instance_tags: class=worker
+  region: us-east-1

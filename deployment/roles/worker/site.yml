@@ -1,0 +1,12 @@
+---
+- hosts: tag_class_worker
+  name: configure worker instances
+  roles:
+    - ../common
+  vars_files:
+    - ../common/vars/packages.yml
+  user: ubuntu
+  gather_facts: true
+  tasks:
+    - include: ../common/tasks/packages.yml
+    - include: ../common/tasks/services.yml
