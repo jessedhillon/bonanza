@@ -4,14 +4,14 @@
     aws_access_key={{ aws.access_key_id }}
     aws_secret_key={{ aws.secret_access_key }}
     count={{ instance_count }}
-    region={{ aws.region }}
-    keypair={{ aws.keypair }}
-    group={{ aws.security_group }}
-    instance_type={{ aws.instance_type }}
-    image={{ aws.image }}
+    region={{ aws_ec2.region }}
+    keypair={{ aws_ec2.keypair }}
+    group={{ aws_ec2.security_group }}
+    instance_type={{ aws_ec2.instance_type }}
+    image={{ aws_ec2.image }}
     wait=true
-    instance_tags={{ aws.instance_tags }}
-    vpc_subnet_id={{ aws.subnet_id }}
+    instance_tags={{ aws_ec2.instance_tags }}
+    vpc_subnet_id={{ aws_ec2.subnet_id }}
   register: ec2
 - name: register host group
   add_host: >

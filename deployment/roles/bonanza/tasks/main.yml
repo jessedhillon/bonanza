@@ -1,0 +1,12 @@
+---
+- name: clone application repository
+  git: >
+    repo=git@github.com:jessedhillon/bonanza.git
+    dest=~/bonanza
+
+- name: make virtualenv
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && mkvirtualenv bonanza
+  register: run_cmd
+- debug: var=run_cmd.stdout_lines

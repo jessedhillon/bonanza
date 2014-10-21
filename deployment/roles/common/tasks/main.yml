@@ -1,0 +1,109 @@
+---
+# basic unix management
+- name: add user accounts
+  user:
+    name: "{{ item.name }}"
+    append: yes
+    password: "{{ item.password_crypt }}"
+    shell: /bin/bash
+    state: present
+    groups: "{{ item.groups }}"
+  with_items:
+    - "{{ users.unprivileged }}"
+    - "{{ users.privileged }}"
+
+- name: create etc skeleton
+  sudo: true
+  file:
+    path: "{{ item }}"
+    mode: 0700
+    owner: root
+    group: root
+    state: directory
+  with_items:
+    - "{{ etc.dirs }}"
+
+- name: copy etc files
+  sudo: true
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - "{{ etc.files }}"
+
+- name: create account skeleton (unprivileged)
+  file:
+    path: "/home/{{ item[0].name }}/{{ item[1].path }}"
+    mode: "{{ item[1].mode }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    state: directory
+  with_nested:
+    - "{{ users.unprivileged }}"
+    - "{{ skeleton_dirs.unprivileged }}"
+
+- name: create account skeleton (privileged)
+  file:
+    path: "/home/{{ item[0].name }}/{{ item[1].path }}"
+    mode: "{{ item[1].mode }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    state: directory
+  with_nested:
+    - "{{ users.privileged }}"
+    - "{{ skeleton_dirs.privileged }}"
+
+- name: copy account skeleton files (unprivileged)
+  copy:
+    src: "{{ item[1].src }}"
+    dest: "/home/{{ item[0].name }}/{{ item[1].dest }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    mode: "{{ item[1].mode }}"
+  with_nested:
+    - "{{ users.unprivileged }}"
+    - "{{ skeleton_files.unprivileged }}"
+
+- name: copy account skeleton files (privileged)
+  copy:
+    src: "{{ item[1].src }}"
+    dest: "/home/{{ item[0].name }}/{{ item[1].dest }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    mode: "{{ item[1].mode }}"
+  with_nested:
+    - "{{ users.privileged }}"
+    - "{{ skeleton_files.privileged }}"
+
+# apt package management
+
+- name: deinstall apt packages
+  apt:
+    pkg: "{{ item }}"
+    purge: True
+    state: absent
+  with_items: apt_deinstall
+
+- name: update apt package sources
+  apt:
+    update_cache: yes
+
+- name: install apt packages
+  apt:
+    pkg: "{{ item.name }}"
+    state: present
+  with_items: apt_install
+
+- name: install pip packages (global)
+  pip:
+    name: "{{ item.name }}"
+    state: present
+  sudo: true
+  with_items: pip_install
+
+# basic services
+- name: start ntp
+  service:
+    name: ntp
+    state: started
+    enabled: true

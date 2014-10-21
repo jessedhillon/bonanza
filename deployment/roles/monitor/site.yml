@@ -1,0 +1,155 @@
+---
+- hosts: tag_class_monitor
+  name: configure monitor instances
+  tags: os
+  roles:
+    - ../common
+  vars_files:
+    - ../common/vars/skeleton.yml
+    - ../common/vars/packages.yml
+    - ../common/vars/user_credentials-vault.yml
+    - vars/credentials-vault.yml
+  user: ubuntu
+  gather_facts: true
+
+- hosts: tag_class_monitor
+  name: deploy rabbitmq
+  tags: monitor,rabbitmq
+  vars_files:
+    - vars/packages.yml
+    - vars/credentials-vault.yml
+  user: ubuntu
+  sudo: true
+  tasks:
+  - name: install apt rabbitmq dependencies
+    apt:
+      pkg: python-software-properties
+      state: installed
+
+  - name: add rabbitmq official apt repository
+    apt_repository:
+      repo: deb http://www.rabbitmq.com/debian/ testing main
+      state: present
+
+  - name: install apt rabbitmq package
+    apt:
+      pkg: rabbitmq-server=3.3.5-1
+      state: installed
+      force: yes
+
+  - name: enable rabbitmq plugins
+    rabbitmq_plugin:
+      names: rabbitmq_management,rabbitmq_tracing,rabbitmq_federation
+      state: enabled
+    notify:
+    - restart rabbitmq
+
+  - name: add rabbitmq user
+    rabbitmq_user:
+      user: "{{ rabbitmq_user.name }}"
+      password: "{{ rabbitmq_user.password }}"
+      tags: administrator, "{{ rabbitmq_user.name }}"
+      vhost: /
+      configure_priv: .* 
+      write_priv: .*
+      read_priv: .*
+      state: present
+
+  - name: remove rabbitmq guest user
+    rabbitmq_user:
+      user: guest
+      state: absent
+
+  - name: ensure rabbitmq vhost /test is present
+    rabbitmq_vhost:
+      name: /test
+      state: present
+
+  handlers:
+  - name: restart rabbitmq
+    service:
+      name: rabbitmq-server
+      state: restarted
+
+- hosts: tag_class_monitor
+  name: deploy sentry
+  tags: monitor,sentry
+  vars_files:
+    - vars/credentials-vault.yml
+    - vars/sentry.yml
+  user: jesse
+  tasks:
+  - name: apt install sentry dependencies
+    sudo: true
+    apt:
+      pkg: "{{ item }}"
+      state: installed
+    with_items:
+      - python-dev=2.7.5-5ubuntu3
+      - redis-server=2:2.8.4-2
+      - memcached=1.4.14-0ubuntu9
+      - libpq-dev=9.3.5-0ubuntu0.14.04.1
+      - postgresql-common=154
+
+  - name: make sentry virtualenv
+    sudo: true
+    sudo_user: bonanza
+    shell: >
+      executable=/bin/bash
+      source `which virtualenvwrapper.sh` && mkvirtualenv sentry
+    register: run_cmd
+  - debug: var=run_cmd.stdout_lines
+
+  - name: pip install sentry dependencies
+    sudo: true
+    sudo_user: bonanza
+    pip:
+      name: "{{ item }}"
+      state: present
+      virtualenv: ~bonanza/.virtualenvs/sentry
+    with_items:
+      - redis
+      - hiredis
+      - nydus
+      - psycopg2
+
+  - name: copy sentry configuration
+    sudo: true
+    sudo_user: ubuntu
+    template:
+      src: templates/sentry.conf.py.j2
+      dest: /etc/sentry.conf.py
+
+  - name: install sentry
+    sudo: true
+    sudo_user: bonanza
+    pip:
+      name: sentry
+      virtualenv: ~/.virtualenvs/sentry
+
+  - name: migrate sentry database
+    sudo: true
+    sudo_user: bonanza
+    shell: >
+      executable=/bin/bash
+      source `which virtualenvwrapper.sh` && workon sentry && sentry --config=/etc/sentry.conf.py upgrade
+    register: run_cmd
+  - debug: var=run_cmd.stdout_lines
+
+  - name: create sentry superuser
+    sudo: true
+    sudo_user: bonanza
+    shell: >
+      executable=/bin/bash
+      source `which virtualenvwrapper.sh` && workon sentry && sentry --config=/etc/sentry.conf.py createsuperuser
+    register: run_cmd
+  - debug: var=run_cmd.stdout_lines
+
+  - name: start sentry
+    sudo: true
+    sudo_user: bonanza
+    shell: >
+      executable=/bin/bash
+      source `which virtualenvwrapper.sh` && workon sentry && sentry --config=/etc/sentry.conf.py start
+    register: run_cmd
+  - debug: var=run_cmd.stdout_lines
