@@ -1,12 +1,20 @@
 ---
 - hosts: tag_class_worker
   name: configure worker instances
+  tags: os
   roles:
     - ../common
   vars_files:
+    - ../common/vars/skeleton.yml
     - ../common/vars/packages.yml
+    - ../common/vars/user_credentials-vault.yml
+    - vars/credentials-vault.yml
   user: ubuntu
   gather_facts: true
-  tasks:
-    - include: ../common/tasks/packages.yml
-    - include: ../common/tasks/services.yml
+
+- hosts: tag_class_worker
+  name: deploy application
+  tags: application
+  roles:
+    - ../bonanza
+  user: bonanza

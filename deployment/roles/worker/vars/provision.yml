@@ -1,7 +1,5 @@
 ---
-aws:
-  access_key_id: AKIAJBNNUTPNSD5ZX6VQ
-  secret_access_key: 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
+aws_ec2:
   keypair: jessedhillon-bonanza
   instance_type: t2.micro
   security_group: production-worker

@@ -1,0 +1,31 @@
+---
+skeleton_dirs:
+  unprivileged:
+    - path: .ssh
+      mode: "0700"
+  privileged:
+    - path: .ssh
+      mode: "0700"
+
+skeleton_files:
+  unprivileged:
+    - src: ssh/authorized_keys
+      dest: .ssh/authorized_keys
+      mode: "0400"
+    - src: ssh/known_hosts
+      dest: .ssh/known_hosts
+      mode: "0600"
+  privileged:
+    - src: ssh/authorized_keys
+      dest: .ssh/authorized_keys
+      mode: "0400"
+    - src: ssh/known_hosts
+      dest: .ssh/known_hosts
+      mode: "0600"
+
+etc:
+  dirs: []
+  files:
+    - src: sudoers.d/100-sudo_group
+      dest: /etc/sudoers.d/
+      validate: "visudo -cf %s"
