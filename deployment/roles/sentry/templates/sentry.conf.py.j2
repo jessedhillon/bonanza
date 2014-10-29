@@ -1,0 +1,82 @@
+from sentry.conf.server import *
+
+import os.path
+
+CONF_ROOT = os.path.dirname(__file__)
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': '{{ sentry_database.name }}',
+        'USER': '{{ sentry_database.user }}',
+        'PASSWORD': '{{ sentry_database.password }}',
+        'HOST': '{{ sentry_database.host }}',
+        'PORT': '',
+        'OPTIONS': {
+            'autocommit': True,
+        }
+    }
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': ['{{ memcached.host }}:{{ memcached.port }}'],
+    }
+}
+
+#   pip install redis hiredis nydus
+SENTRY_BUFFER = 'sentry.buffer.redis.RedisBuffer'
+SENTRY_REDIS_OPTIONS = {
+    'hosts': {
+        0: {
+            'host': '{{ redis.host }}',
+            'port': {{ redis.port }},
+        }
+    }
+}
+BROKER_URL = "redis://{{ redis.host }}:{{ redis.port }}/0"
+SENTRY_URL_PREFIX = 'http://{{ ec2_public_dns_name }}:{{ sentry.port }}'  # No trailing slash!
+SENTRY_KEY = '{{ sentry.key }}'
+SENTRY_WEB_HOST = '0.0.0.0'
+SENTRY_WEB_PORT = {{ sentry.port }}
+SENTRY_WEB_OPTIONS = {
+    'workers': 3,  # the number of gunicorn workers
+    'limit_request_line': 0,  # required for raven-js
+    'secure_scheme_headers': {'X-FORWARDED-PROTO': 'https'},
+}
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = '{{ ses.host }}'
+EMAIL_HOST_PASSWORD = '{{ ses.password }}'
+EMAIL_HOST_USER = '{{ ses.username }}'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+SERVER_EMAIL = '{{ ses.mail_from }}'
+
+SECRET_KEY = '{{ sentry.secret_key }}'
+
+# http://twitter.com/apps/new
+# It's important that input a callback URL, even if its useless. We have no idea why, consult Twitter.
+TWITTER_CONSUMER_KEY = ''
+TWITTER_CONSUMER_SECRET = ''
+
+# http://developers.facebook.com/setup/
+FACEBOOK_APP_ID = ''
+FACEBOOK_API_SECRET = ''
+
+# http://code.google.com/apis/accounts/docs/OAuth2.html#Registering
+GOOGLE_OAUTH2_CLIENT_ID = ''
+GOOGLE_OAUTH2_CLIENT_SECRET = ''
+
+# https://github.com/settings/applications/new
+GITHUB_APP_ID = ''
+GITHUB_API_SECRET = ''
+
+# https://trello.com/1/appKey/generate
+TRELLO_API_KEY = ''
+TRELLO_API_SECRET = ''
+
+# https://confluence.atlassian.com/display/BITBUCKET/OAuth+Consumers
+BITBUCKET_CONSUMER_KEY = ''
+BITBUCKET_CONSUMER_SECRET = ''

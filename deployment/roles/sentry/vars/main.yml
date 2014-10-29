@@ -1,0 +1,27 @@
+---
+virtualenvs:
+  - "sentry"
+
+apt_install:
+  - { name: python-dev, version: 2.7.5-5ubuntu3 }
+  - { name: redis-server, version: "2:2.8.4-2" }
+  - { name: memcached, version: 1.4.14-0ubuntu9 }
+  - { name: libpq-dev, version: 9.3.5-0ubuntu0.14.04.1 }
+  - { name: postgresql-common, version: 154 }
+
+pip_user_install:
+  - { name: redis, virtualenv: ~bonanza/.virtualenvs/sentry }
+  - { name: hiredis, virtualenv: ~bonanza/.virtualenvs/sentry }
+  - { name: nydus, virtualenv: ~bonanza/.virtualenvs/sentry }
+  - { name: psycopg2, virtualenv: ~bonanza/.virtualenvs/sentry }
+  - { name: sentry, virtualenv: ~bonanza/.virtualenvs/sentry }
+
+redis:
+  # host: "{{ ec2_public_dns_name }}"
+  host: localhost
+  port: 6379
+
+memcached:
+  # host: "{{ ec2_public_dns_name }}"
+  host: localhost
+  port: 11211
