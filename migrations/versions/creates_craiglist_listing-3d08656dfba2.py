@@ -45,13 +45,5 @@ def downgrade():
         sa.Column('mtime', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
         sa.PrimaryKeyConstraint('key', name=u'pk_listing')
     )
-    op.create_table('spatial_ref_sys',
-        sa.Column('srid', sa.INTEGER(), autoincrement=False, nullable=False),
-        sa.Column('auth_name', sa.VARCHAR(length=256), autoincrement=False, nullable=True),
-        sa.Column('auth_srid', sa.INTEGER(), autoincrement=False, nullable=True),
-        sa.Column('srtext', sa.VARCHAR(length=2048), autoincrement=False, nullable=True),
-        sa.Column('proj4text', sa.VARCHAR(length=2048), autoincrement=False, nullable=True),
-        sa.PrimaryKeyConstraint('srid', name=u'spatial_ref_sys_pkey')
-    )
     op.drop_table('craigslist_listing')
     ### end Alembic commands ###
