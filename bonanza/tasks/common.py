@@ -144,3 +144,8 @@ def _parse_schedule(sched):
         sched[k] = int(v)
 
     return sched
+
+
+def post_mortem():
+    if logger:
+        logger.exception(u"unhandled exception")
