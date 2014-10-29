@@ -4,11 +4,12 @@
   roles:
     - supervisor
     - bonanza
-  user: jesse
-  # vars_files:
-  #   - roles/common/vars/skeleton.yml
-  #   - roles/common/vars/packages.yml
-  #   - roles/common/vars/credentials-vault.yml
-  #   - roles/rabbitmq/vars/credentials-vault.yml
-  #   - roles/sentry/vars/credentials-vault.yml
+    - bonanza-worker
+  user: ubuntu
+  vars_files:
+    - roles/common/vars/skeleton.yml
+    - roles/common/vars/packages.yml
+    - roles/common/vars/credentials-vault.yml
+    - roles/rabbitmq/vars/credentials-vault.yml
+    - roles/sentry/vars/credentials-vault.yml
   gather_facts: true
