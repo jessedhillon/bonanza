@@ -1,22 +1,57 @@
 ---
 - name: clone application repository
-  sudo: true
-  sudo_user: bonanza
+  tags:
+    - bonanza
+    - git
+  remote_user: bonanza  # to allow SSH agent forwarding
   git: >
     repo=git@github.com:jessedhillon/bonanza.git
     dest=~/bonanza
 
-- name: make virtualenv
+- name: install bonanza configuration
+  tags:
+    - bonanza
+    - configure
   sudo: true
   sudo_user: bonanza
+  template:
+    src: bonanza.ini.j2
+    dest: /home/bonanza/bonanza/bonanza.ini
+
+- name: enable global site packages in bonanza virtualenv
+  tags:
+    - bonanza
+    - setuptools
+  sudo: true
+  sudo_user: bonanza
+  file:
+    path:  /home/bonanza/.virtualenvs/bonanza/lib/python2.7/no-global-site-packages.txt
+    state: absent
+
+- name: install bonanza into virtualenv
+  tags: 
+    - bonanza
+    - setuptools
+  remote_user: bonanza  # to allow SSH agent forwarding
   shell: >
     executable=/bin/bash
-    source `which virtualenvwrapper.sh` && mkvirtualenv bonanza
-  register: run_cmd
+    source `which virtualenvwrapper.sh` && workon bonanza && pip install -e ~bonanza/bonanza/
 
 - name: perform database migrations
-  sudo: true
-  sudo_user: bonanza
+  tags: 
+    - bonanza
+    - database
+    - alembic
+  remote_user: bonanza  # to allow SSH agent forwarding
   shell: >
     executable=/bin/bash
-    source `which virtualenvwrapper.sh` && alembic -c ~bonanza/bonanza/bonanza.ini upgrade head
+    source `which virtualenvwrapper.sh` && workon bonanza && cd ~bonanza/bonanza && alembic -c ~bonanza/bonanza/bonanza.ini upgrade head
+
+- name: create bonanza log directory
+  tags: 
+    - bonanza
+    - unix
+  remote_user: bonanza
+  file:
+    path: /home/bonanza/bonanza/log
+    state: directory
