@@ -46,5 +46,5 @@ apt_deinstall:
   - 'update-notifier-common'
   - 'whoopsie'
 
-pip_install:
+pip_system_install:
   - { name: 'virtualenvwrapper' }

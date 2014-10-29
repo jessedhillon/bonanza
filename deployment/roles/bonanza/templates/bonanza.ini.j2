@@ -9,7 +9,7 @@ pyramid.debug_templates = false
 pyramid.default_locale_name = en
 pyramid.includes = pyramid_tm
 
-sqlalchemy.url = postgres://{{ database.user }}@{{ database.host }}/{{ database.name }}
+sqlalchemy.url = postgres://{{ bonanza_database.user }}@{{ bonanza_database.host }}/{{ bonanza_database.name }}
 bonanza.debug = false
 
 jinja2.directories =
@@ -97,7 +97,7 @@ routing_key = listings.craigslist
 
 [alembic]
 script_location = migrations
-sqlalchemy.url = postgres://{{ database.user }}@{{ database.host }}/{{ database.name }}
+sqlalchemy.url = postgres://{{ bonanza_database.user }}@{{ bonanza_database.host }}/{{ bonanza_database.name }}
 file_template = %%(slug)s-%%(rev)s
 exclude_tables = spatial_ref_sys
 # truncate_slug_length = 40

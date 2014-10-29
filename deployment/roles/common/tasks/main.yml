@@ -1,6 +1,9 @@
 ---
 # basic unix management
 - name: add user accounts
+  tags:
+    - unix
+  sudo: true
   user:
     name: "{{ item.name }}"
     append: yes
@@ -13,6 +16,8 @@
     - "{{ users.privileged }}"
 
 - name: create etc skeleton
+  tags:
+    - unix
   sudo: true
   file:
     path: "{{ item }}"
@@ -24,6 +29,8 @@
     - "{{ etc.dirs }}"
 
 - name: copy etc files
+  tags:
+    - unix
   sudo: true
   template:
     src: "{{ item.src }}"
@@ -32,6 +39,10 @@
     - "{{ etc.files }}"
 
 - name: create account skeleton (unprivileged)
+  sudo: true
+  sudo_user: "{{ item[0].name }}"
+  tags:
+    - unix
   file:
     path: "/home/{{ item[0].name }}/{{ item[1].path }}"
     mode: "{{ item[1].mode }}"
@@ -43,6 +54,9 @@
     - "{{ skeleton_dirs.unprivileged }}"
 
 - name: create account skeleton (privileged)
+  sudo: true
+  tags:
+    - unix
   file:
     path: "/home/{{ item[0].name }}/{{ item[1].path }}"
     mode: "{{ item[1].mode }}"
@@ -54,6 +68,10 @@
     - "{{ skeleton_dirs.privileged }}"
 
 - name: copy account skeleton files (unprivileged)
+  tags:
+    - unix
+  sudo: true
+  sudo_user: "{{ item[0].name }}"
   copy:
     src: "{{ item[1].src }}"
     dest: "/home/{{ item[0].name }}/{{ item[1].dest }}"
@@ -65,6 +83,10 @@
     - "{{ skeleton_files.unprivileged }}"
 
 - name: copy account skeleton files (privileged)
+  tags:
+    - unix
+  sudo: true
+  sudo_user: "{{ item[0].name }}"
   copy:
     src: "{{ item[1].src }}"
     dest: "/home/{{ item[0].name }}/{{ item[1].dest }}"
@@ -78,28 +100,71 @@
 # apt package management
 
 - name: deinstall apt packages
+  tags:
+    - apt
+  sudo: true
   apt:
     pkg: "{{ item }}"
     purge: True
     state: absent
   with_items: apt_deinstall
 
+- name: add apt repositories
+  tags:
+    - apt
+  sudo: true
+  apt_repository:
+    repo: "{{ item.repo }}"
+    state: present
+  with_items: apt_repositories
+
 - name: update apt package sources
+  tags:
+    - apt
+  sudo: true
   apt:
     update_cache: yes
 
 - name: install apt packages
+  tags:
+    - apt
+  sudo: true
   apt:
-    pkg: "{{ item.name }}"
+    name: "{{ item.name }}{{ ('=' + (item.version | string)) if item.version is defined else '' }}"
     state: present
+    force: "{{ item.force | default('no') }}"
   with_items: apt_install
 
 - name: install pip packages (global)
+  tags:
+    - pip
+  sudo: true
   pip:
     name: "{{ item.name }}"
     state: present
   sudo: true
-  with_items: pip_install
+  with_items: pip_system_install
+
+- name: create virtualenvs
+  tags:
+    - pip
+  sudo: true
+  sudo_user: bonanza
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && mkvirtualenv {{ item }}
+  with_items: virtualenvs
+
+- name: install pip packages (bonanza)
+  tags:
+    - pip
+  sudo: true
+  sudo_user: bonanza
+  pip:
+    name: "{{ item.name }}"
+    state: present
+    virtualenv: "{{ item.virtualenv }}"
+  with_items: pip_user_install
 
 # basic services
 - name: start ntp

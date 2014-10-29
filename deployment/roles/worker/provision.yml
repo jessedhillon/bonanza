@@ -1,5 +1,5 @@
 ---
-- hosts: localhost
+- hosts: local
   connection: local
   name: provision worker
   gather_facts: false

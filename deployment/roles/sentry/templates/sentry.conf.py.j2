@@ -47,12 +47,12 @@ SENTRY_WEB_OPTIONS = {
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'localhost'
-EMAIL_HOST_PASSWORD = ''
-EMAIL_HOST_USER = ''
-EMAIL_PORT = 25
-EMAIL_USE_TLS = False
-SERVER_EMAIL = 'root@localhost'
+EMAIL_HOST = '{{ ses.host }}'
+EMAIL_HOST_PASSWORD = '{{ ses.password }}'
+EMAIL_HOST_USER = '{{ ses.username }}'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+SERVER_EMAIL = '{{ ses.mail_from }}'
 
 SECRET_KEY = '{{ sentry.secret_key }}'
 
