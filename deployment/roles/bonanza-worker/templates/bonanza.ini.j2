@@ -100,6 +100,10 @@ script_location = migrations
 sqlalchemy.url = postgres://{{ bonanza_database.user }}@{{ bonanza_database.host }}/{{ bonanza_database.name }}
 file_template = %%(slug)s-%%(rev)s
 exclude_tables = spatial_ref_sys
+# truncate_slug_length = 40
+# revision_environment = false
+# sourceless = false
+
 
 # Begin logging configuration
 
@@ -152,7 +156,7 @@ formatter = generic
 
 [handler_sentry]
 class = raven.handlers.logging.SentryHandler
-args = ('http://{{ sentry.project.api_key }}@{{ sentry.host }}:{{ sentry.port }}/{{ sentry.project.id }}',)
+args = ('http://{{ sentry.api_key }}@{{ sentry.host }}:{{ sentry.port }}/{{ sentry.project_id }}',)
 level = INFO
 formatter = generic
 

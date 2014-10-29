@@ -1,0 +1,19 @@
+---
+- name: install bonanza supervisor configuration
+  sudo: true
+  tags:
+    - bonanza
+    - supervisor
+  copy:
+    src: supervisord.conf.d/bonanza-craigslist-worker.conf
+    dest: /etc/supervisor/conf.d/bonanza-craigslist-worker.conf
+  notify:
+    - restart supervisord
+
+- name: prepopulate craiglist subdomains queue
+  sudo: true
+  sudo_user: bonanza
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && mkvirtualenv bonanza && task produce_sudomains -a run_once=True --config=~bonanza/bonanza/bonanza.ini
+  register: run_cmd
