@@ -1,12 +1,22 @@
 ---
 - name: clone application repository
+  sudo: true
+  sudo_user: bonanza
   git: >
     repo=git@github.com:jessedhillon/bonanza.git
     dest=~/bonanza
 
 - name: make virtualenv
+  sudo: true
+  sudo_user: bonanza
   shell: >
     executable=/bin/bash
     source `which virtualenvwrapper.sh` && mkvirtualenv bonanza
   register: run_cmd
-- debug: var=run_cmd.stdout_lines
+
+- name: perform database migrations
+  sudo: true
+  sudo_user: bonanza
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && alembic -c ~bonanza/bonanza/bonanza.ini upgrade head
