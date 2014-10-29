@@ -20,17 +20,20 @@ class UrlProducerTask(Task):
     run_once = False
 
     def run(self):
-        self.connect()
-        while True:
-            if not self.run_once:
-                self.sleep_until(self.next_occurrence)
+        try:
+            self.connect()
+            while True:
+                if not self.run_once:
+                    self.sleep_until(self.next_occurrence)
 
-            if self.is_stopped:
-                return
+                if self.is_stopped:
+                    return
 
-            self.process_regions()
-            if self.run_once:
-                self.stop()
+                self.process_regions()
+                if self.run_once:
+                    self.stop()
+        except:
+            common.post_portem()
 
     def process_regions(self):
         with open(self.region_file, 'r') as f:
@@ -64,16 +67,19 @@ class JsonSearchTask(Task):
     }
 
     def run(self):
-        self.connect()
-        self.channel.basic_qos(0, 1, False)
+        try:
+            self.connect()
+            self.channel.basic_qos(0, 1, False)
 
-        with self.connection.Consumer(queues=[self.get_queue('requests')],
-                                      callbacks=[self.receive],
-                                      channel=self.channel):
-            while True:
-                if self.is_stopped:
-                    return
-                self.connection.drain_events()
+            with self.connection.Consumer(queues=[self.get_queue('requests')],
+                                          callbacks=[self.receive],
+                                          channel=self.channel):
+                while True:
+                    if self.is_stopped:
+                        return
+                    self.connection.drain_events()
+        except:
+            common.post_mortem()
 
     def receive(self, body, message):
         self.acquire_token()
@@ -150,20 +156,24 @@ class ListingProcessorTask(Task):
         self.session = models.Session(bind=self.conn)
 
     def run(self):
-        self.connect()
-        self.channel.basic_qos(0, 1, False)
+        try:
+            self.connect()
+            self.channel.basic_qos(0, 1, False)
 
-        with self.connection.Consumer(
-                queues=[self.get_queue('listings')],
-                callbacks=[self.receive],
-                channel=self.channel):
-            while True:
-                if self.is_stopped:
-                    break
-                self.connection.drain_events()
+            with self.connection.Consumer(
+                    queues=[self.get_queue('listings')],
+                    callbacks=[self.receive],
+                    channel=self.channel):
+                while True:
+                    if self.is_stopped:
+                        break
+                    self.connection.drain_events()
 
-        self.session.close()
-        self.conn.close()
+            self.session.close()
+            self.conn.close()
+
+        except:
+            common.post_mortem()
 
     def receive(self, body, message):
         data = body['data']
