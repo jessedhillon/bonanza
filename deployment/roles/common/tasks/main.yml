@@ -117,6 +117,7 @@
     repo: "{{ item.repo }}"
     state: present
   with_items: apt_repositories
+  when: apt_repositories is defined
 
 - name: update apt package sources
   tags:
@@ -165,6 +166,7 @@
     state: present
     virtualenv: "{{ item.virtualenv }}"
   with_items: pip_user_install
+  when: pip_user_install is defined
 
 # basic services
 - name: start ntp
