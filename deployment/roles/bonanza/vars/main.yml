@@ -1,0 +1,8 @@
+---
+virtualenvs:
+  - bonanza
+
+apt_install:
+  - { name: 'python-lxml', version: '3.3.3-1ubuntu0.1' }
+  - { name: 'libgeos-3.4.2', version: '3.4.2-4ubuntu1' }
+  - { name: 'libgdal1h', version: '1.10.1+dfsg-5ubuntu1' }

@@ -13,9 +13,9 @@
     - rabbitmq
   sudo: true
   rabbitmq_user:
-    user: "{{ rabbitmq_user.name }}"
-    password: "{{ rabbitmq_user.password }}"
-    tags: administrator, "{{ rabbitmq_user.name }}"
+    user: "{{ rabbitmq.user.name }}"
+    password: "{{ rabbitmq.user.password }}"
+    tags: administrator, "{{ rabbitmq.user.name }}"
     vhost: /
     configure_priv: .* 
     write_priv: .*
