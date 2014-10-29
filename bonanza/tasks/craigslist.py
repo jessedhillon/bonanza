@@ -65,7 +65,7 @@ class JsonSearchTask(Task):
 
     def run(self):
         self.connect()
-        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
+        self.channel.basic_qos(0, 1, False)
 
         with self.connection.Consumer(queues=[self.get_queue('requests')],
                                       callbacks=[self.receive],
@@ -151,7 +151,7 @@ class ListingProcessorTask(Task):
 
     def run(self):
         self.connect()
-        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
+        self.channel.basic_qos(0, 1, False)
 
         with self.connection.Consumer(
                 queues=[self.get_queue('listings')],
