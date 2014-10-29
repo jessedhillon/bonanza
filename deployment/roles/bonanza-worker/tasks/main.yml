@@ -7,7 +7,7 @@
   sudo_user: bonanza
   shell: >
     executable=/bin/bash
-    source `which virtualenvwrapper.sh` && mkvirtualenv bonanza && task produce_sudomains -a run_once=True --config=~/bonanza/bonanza.ini
+    source `which virtualenvwrapper.sh` && workon bonanza && task produce_sudomains -a run_once=True --config=~/bonanza/bonanza.ini
   register: run_cmd
 
 - name: install bonanza supervisor configuration
