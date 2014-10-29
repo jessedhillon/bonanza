@@ -77,7 +77,7 @@ def run_task(arguments, settings):
 
     signal.signal(signal.SIGINT, make_signal_handler(threads))
 
-    while threading.active_count() > 1:
+    while any([t.is_alive() for t in threads]):
         time.sleep(0.5)
 
 

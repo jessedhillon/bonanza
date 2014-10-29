@@ -17,20 +17,20 @@ logger = logging.getLogger(__name__)
 
 
 class UrlProducerTask(Task):
-    first_run = False
+    run_once = False
 
     def run(self):
         self.connect()
         while True:
-            if self.first_run:
-                self.first_run = False
-            else:
+            if not self.run_once:
                 self.sleep_until(self.next_occurrence)
 
             if self.is_stopped:
                 return
 
             self.process_regions()
+            if self.run_once:
+                self.stop()
 
     def process_regions(self):
         with open(self.region_file, 'r') as f:
