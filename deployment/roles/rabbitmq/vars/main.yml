@@ -2,9 +2,13 @@
 apt_repositories:
   - { repo: 'deb http://www.rabbitmq.com/debian/ testing main' }
 
-pip_install:
-  - { name: 'python-software-properties' }
+virtualenvs: 
+  - sentry
 
 apt_install:
   - name: rabbitmq-server
-    version: 3.0.2-1
+    version: 3.4.0-1
+    force: yes
+  - name: python-software-properties
+
+apt_deinstall: []
