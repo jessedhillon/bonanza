@@ -1,0 +1,10 @@
+---
+- hosts: local
+  connection: local
+  name: provision worker
+  gather_facts: false
+  vars_files:
+    - ../common/vars/user_credentials-vault.yml
+    - vars/provision.yml
+  tasks:
+    - include: ../common/tasks/provision.yml

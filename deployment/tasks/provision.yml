@@ -1,0 +1,24 @@
+---
+- name: provision instance
+  ec2: >
+    aws_access_key={{ aws.access_key_id }}
+    aws_secret_key={{ aws.secret_access_key }}
+    count={{ instance_count }}
+    region={{ aws_ec2.region }}
+    keypair={{ aws_ec2.keypair }}
+    group={{ aws_ec2.security_group }}
+    instance_type={{ aws_ec2.instance_type }}
+    image={{ aws_ec2.image }}
+    wait=true
+    instance_tags={{ aws_ec2.instance_tags }}
+    vpc_subnet_id={{ aws_ec2.subnet_id }}
+  register: ec2
+
+- name: register host group
+  add_host: >
+    hostname={{ item.public_dns_name }}
+    groupname=provisioned
+  with_items: ec2.instances
+
+- name: wait for instance boot
+  pause: minutes=1

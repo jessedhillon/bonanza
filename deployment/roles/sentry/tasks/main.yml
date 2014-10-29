@@ -1,0 +1,61 @@
+---
+- name: copy sentry configuration
+  tags:
+    - sentry
+  sudo: true
+  template:
+    src: sentry.conf.py.j2
+    dest: /etc/sentry.conf.py
+
+- name: migrate sentry database
+  tags:
+    - sentry
+    - cli
+  sudo: true
+  sudo_user: bonanza
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && workon sentry && sentry --config=/etc/sentry.conf.py upgrade
+
+- name: copy sentry base fixtures
+  sudo: true
+  sudo_user: bonanza
+  tags:
+    - sentry
+  copy:
+    src: "{{ item }}"
+    dest: "~bonanza/{{ item }}"
+  with_items:
+    - sentry-auth.json
+    - sentry-base.json
+
+- name: install sentry base fixtures
+  sudo: true
+  sudo_user: bonanza
+  tags:
+    - sentry
+  shell: >
+    executable=/bin/bash source `which virtualenvwrapper.sh` && workon sentry && sentry --config=/etc/sentry.conf.py loaddata ~/sentry-base.json
+
+- name: remove sentry base fixture dump
+  sudo: true
+  sudo_user: bonanza
+  tags:
+     - sentry
+  file:
+    path: "~bonanza/{{ item }}"
+    state: absent
+  with_items:
+    - sentry-auth.json
+    - sentry-base.json
+
+- name: install sentry supervisor configuration
+  sudo: true
+  tags:
+    - sentry
+    - supervisor
+  copy:
+    src: supervisord.conf.d/sentry.conf
+    dest: /etc/supervisor/conf.d/sentry.conf
+  notify:
+    - restart supervisord
