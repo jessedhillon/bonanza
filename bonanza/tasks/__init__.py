@@ -88,23 +88,47 @@ class Task(Thread):
             diff = t - datetime.now()
             time.sleep(0.5)
 
-    def acquire_token(self, block=True):
+    def sleep_for(self, t, step=0.5):
+        logger.debug("sleeping for {:0.0f}s".
+                     format(t))
+
+        slept = 0
+        while slept < t:
+            if self.is_stopped:
+                return
+
+            time.sleep(step)
+            slept += step
+
+    def acquire_token(self, tokens=1, block=True):
         if not self.tokens:
             raise RuntimeError("{} is not using a token bucket".
                                format(self.name))
 
-        self.token_lock.acquire()
-        if self.tokens.can_consume():
+        self.token_lock.acquire(True)
+        acquired = self.tokens.can_consume(tokens)
+        if acquired:
             self.token_lock.release()
-            return True
+            return acquired
         else:
             self.token_lock.release()
             if block:
-                wait = self.tokens.expected_time()
-                time.sleep(wait)
-                self.acquire_token(block)
+                acquired = False
+                while not acquired:
+                    wait = self.tokens.expected_time(tokens)
+                    self.sleep_for(wait)
+
+                    if self.is_stopped:
+                        return
+
+                    self.token_lock.acquire(True)
+                    acquired = self.tokens.can_consume(tokens)
+                    self.token_lock.release()
+
+                return acquired
+
             else:
-                return self.tokens.expected_time()
+                return self.tokens.expected_time(tokens)
 
     def stop(self):
         logger.debug("{} stop".format(self.name))
