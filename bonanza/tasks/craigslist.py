@@ -92,7 +92,12 @@ class JsonSearchTask(Task):
             self.acquire_token()
 
             r = requests.get(url, headers=self.headers)
-            results, query = r.json()
+
+            try:
+                results, query = r.json()
+            except ValueError:
+                logger.exception("json decode error")
+                message.requeue()
 
             extra.update({
                 'count': len(results),
