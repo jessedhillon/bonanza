@@ -82,8 +82,6 @@ class JsonSearchTask(Task):
             common.post_mortem()
 
     def receive(self, body, message):
-        self.acquire_token()
-
         url = self.make_url(body['subdomain'], body['endpoint'])
         extra = {
             'endpoint': body['endpoint'],
@@ -91,6 +89,8 @@ class JsonSearchTask(Task):
         }
 
         try:
+            self.acquire_token()
+
             r = requests.get(url, headers=self.headers)
             results, query = r.json()
 
