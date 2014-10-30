@@ -3,7 +3,6 @@ virtualenvs:
   - "sentry"
 
 apt_install:
-  - { name: python-dev, version: 2.7.5-5ubuntu3 }
   - { name: redis-server, version: "2:2.8.4-2" }
   - { name: memcached, version: 1.4.14-0ubuntu9 }
 
