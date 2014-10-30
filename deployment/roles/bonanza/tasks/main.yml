@@ -7,6 +7,8 @@
   git: >
     repo=git@github.com:jessedhillon/bonanza.git
     dest=~/bonanza
+  notify:
+    - restart supervisord
 
 - name: install bonanza configuration
   tags:
@@ -17,6 +19,8 @@
   template:
     src: bonanza.ini.j2
     dest: /home/bonanza/bonanza/bonanza.ini
+  notify:
+    - restart supervisord
 
 - name: enable global site packages in bonanza virtualenv
   tags:
@@ -36,6 +40,8 @@
   shell: >
     executable=/bin/bash
     source `which virtualenvwrapper.sh` && workon bonanza && pip install -e ~bonanza/bonanza/
+  notify:
+    - restart supervisord
 
 - name: perform database migrations
   tags: 
