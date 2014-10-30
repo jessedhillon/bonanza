@@ -98,6 +98,7 @@ class JsonSearchTask(Task):
             except ValueError:
                 logger.exception("json decode error")
                 message.requeue()
+                return
 
             extra.update({
                 'count': len(results),
