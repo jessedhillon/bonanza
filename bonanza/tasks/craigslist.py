@@ -111,7 +111,7 @@ class JsonSearchTask(Task):
                 logger.info("processing subdomain", extra=extra)
 
             for l in results:
-                if 'GeoCluster' in l:
+                if 'GeoCluster' in l and int(l['NumPosts']) >= 8:
                     data = {
                         'subdomain': body['subdomain'],
                         'endpoint': l['url'],
