@@ -197,6 +197,7 @@ class ListingProcessorTask(Task):
         except KeyError:
             logger.warning("received incomplete listing data", exc_info=True)
             message.requeue()
+            return
 
         self.session.add(listing)
         self.session.commit()
