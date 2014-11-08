@@ -196,7 +196,7 @@ class ListingProcessorTask(Task):
                 listing = self.insert_listing(subdomain, data)
         except KeyError:
             logger.warning("received incomplete listing data", exc_info=True)
-            message.requeue()
+            message.ack()
             return
 
         self.session.add(listing)
