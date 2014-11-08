@@ -111,23 +111,24 @@ class JsonSearchTask(Task):
                 logger.info("processing subdomain", extra=extra)
 
             for l in results:
-                if 'GeoCluster' in l and int(l['NumPosts']) >= 8:
-                    data = {
-                        'subdomain': body['subdomain'],
-                        'endpoint': l['url'],
-                        'name': body['name'],
-                        'state': body['state'],
-                        'geocluster_id': l['GeoCluster']
-                    }
+                if 'GeoCluster' in l:
+                    if int(l['NumPosts']) >= 8:
+                        data = {
+                            'subdomain': body['subdomain'],
+                            'endpoint': l['url'],
+                            'name': body['name'],
+                            'state': body['state'],
+                            'geocluster_id': l['GeoCluster']
+                        }
 
-                    with common.get_producer(self.connection) as producer:
-                        producer.publish(
-                            data,
-                            exchange=self.get_exchange('requests'),
-                            routing_key='requests.craigslist.geocluster',
-                            declare=[self.get_exchange('requests'),
-                                     self.get_queue('requests'),
-                                     self.get_queue('geocluster_requests')])
+                        with common.get_producer(self.connection) as producer:
+                            producer.publish(
+                                data,
+                                exchange=self.get_exchange('requests'),
+                                routing_key='requests.craigslist.geocluster',
+                                declare=[self.get_exchange('requests'),
+                                         self.get_queue('requests'),
+                                         self.get_queue('geocluster_requests')])
                 else:
                     data = {
                         'subdomain': body['subdomain'],
@@ -187,10 +188,15 @@ class ListingProcessorTask(Task):
 
         listing_id = data['PostingID']
         listing = self.get_listing_by_id(listing_id)
-        if listing is not None:
-            self.update_listing(subdomain, listing, data)
-        else:
-            listing = self.insert_listing(subdomain, data)
+
+        try:
+            if listing is not None:
+                self.update_listing(subdomain, listing, data)
+            else:
+                listing = self.insert_listing(subdomain, data)
+        except KeyError:
+            logger.warning("received incomplete listing data", exc_info=True)
+            message.requeue()
 
         self.session.add(listing)
         self.session.commit()
