@@ -1,15 +1,4 @@
 ---
-- name: prepopulate craiglist subdomains queue
-  tags:
-    - bonanza
-    - supervisor
-  sudo: true
-  sudo_user: bonanza
-  shell: >
-    executable=/bin/bash
-    source `which virtualenvwrapper.sh` && workon bonanza && task produce_sudomains -a run_once=True --config=~/bonanza/bonanza.ini
-  register: run_cmd
-
 - name: install bonanza supervisor configuration
   sudo: true
   tags:
