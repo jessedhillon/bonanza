@@ -1,14 +1,9 @@
 import json
 from hashlib import sha1
 
-from sqlalchemy.ext.associationproxy import association_proxy, AssociationProxy
-from sqlalchemy.orm import relation
-from sqlalchemy.orm.collections import attribute_mapped_collection
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from sqlalchemy.schema import ForeignKey, Column, Index, UniqueConstraint, ForeignKeyConstraint
-from sqlalchemy.sql import and_, or_, not_, null
-from sqlalchemy.sql.expression import desc, asc
-from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric, Date
+from sqlalchemy.schema import Column
+from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric, Date,\
+        Binary
 from sqlalchemy.dialects.postgresql import JSON
 from geoalchemy2 import Geometry
 from batteries.model import Model
@@ -30,8 +25,10 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
     ask = Column(Numeric(12, scale=2), nullable=False, index=True)
 
     location = Column('location', Geometry('POINT', 4269), index=True)
+    geocluster_id = Column(Unicode(20), nullable=True, index=True)
+    request_token = Column(Binary(16), index=True)
 
-    subdomain = Column(Unicode(100), nullable=False)
+    subdomain = Column(Unicode(100), nullable=False, index=True)
     data = Column(JSON)
 
     @classmethod

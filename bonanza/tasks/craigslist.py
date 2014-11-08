@@ -1,6 +1,8 @@
 import logging
 import json
+import base64
 import requests
+from uuid import uuid4 as uuid
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 import random
 from urlparse import urlunsplit
@@ -81,6 +83,9 @@ class JsonSearchTask(Task):
         except:
             common.post_mortem()
 
+    def generate_request_token(self):
+        return uuid().bytes
+
     def receive(self, body, message):
         url = self.make_url(body['subdomain'], body['endpoint'])
         extra = {
@@ -90,6 +95,7 @@ class JsonSearchTask(Task):
 
         try:
             self.acquire_token()
+            token = base64.b64encode(self.generate_request_token())
 
             r = requests.get(url, headers=self.headers)
 
@@ -114,6 +120,7 @@ class JsonSearchTask(Task):
                 if 'GeoCluster' in l:
                     if int(l['NumPosts']) >= 8:
                         data = {
+                            '_token': token,
                             'subdomain': body['subdomain'],
                             'endpoint': l['url'],
                             'name': body['name'],
@@ -131,9 +138,13 @@ class JsonSearchTask(Task):
                                          self.get_queue('geocluster_requests')])
                 else:
                     data = {
+                        '_token': token,
                         'subdomain': body['subdomain'],
                         'data': l,
                     }
+
+                    if 'geocluster_id' in body:
+                        data['geocluster_id'] = body['geocluster_id']
 
                     with common.get_producer(self.connection) as producer:
                         producer.publish(
@@ -185,6 +196,8 @@ class ListingProcessorTask(Task):
     def receive(self, body, message):
         data = body['data']
         subdomain = body['subdomain']
+        token = base64.b64decode(body['_token']) if '_token' in body else None
+        geocluster_id = body.get('geocluster_id')
 
         listing_id = data['PostingID']
         listing = self.get_listing_by_id(listing_id)
@@ -199,6 +212,8 @@ class ListingProcessorTask(Task):
             message.ack()
             return
 
+        listing.request_token = token
+        listing.geocluster_id = geocluster_id
         self.session.add(listing)
         self.session.commit()
         message.ack()
