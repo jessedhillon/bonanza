@@ -1,13 +1,14 @@
 import json
 from hashlib import sha1
 
-from sqlalchemy.schema import Column
-from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric, Date,\
-        Binary
+from sqlalchemy.orm import relationship
+from sqlalchemy.schema import Column, ForeignKey
+from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric,\
+    Date, Binary
 from sqlalchemy.dialects.postgresql import JSON
 from geoalchemy2 import Geometry
 from batteries.model import Model
-from batteries.model.hashable import Hashable, HashableKey
+from batteries.model.hashable import Hashable, HashableKey, HashableReference
 from batteries.model.recordable import Recordable
 from batteries.model.geometric import Geometric
 
@@ -58,3 +59,31 @@ class HomepathListing(Hashable, Recordable, Geometric, Model):
 
     request_token = Column(Binary(16), index=True)
     data = Column(JSON)
+
+
+class Dimension(Model):
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+
+
+class Segment(Model):
+    dimension_id = Column(Unicode(20), ForeignKey('dimension.id'),
+                          primary_key=True)
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+
+
+class Series(Hashable, Model):
+    _key = HashableKey()
+
+    concept_key = HashableReference('concept')
+    duration = Column(Integer, index=True)
+
+    segments = relationship('Segment')
+
+
+class Measure(Model):
+    series_key = HashableReference('series', primary_key=True)
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False, index=True)
+    value = Column(Numeric(20, scale=2), nullable=False, index=True)
