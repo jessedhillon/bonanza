@@ -92,7 +92,11 @@ class JsonSearchTask(Task):
                 while True:
                     if self.is_stopped:
                         return
-                    self.connection.drain_events(timeout=1)
+
+                    try:
+                        self.connection.drain_events(timeout=1)
+                    except timeout:
+                        pass
         except:
             common.post_mortem()
 
