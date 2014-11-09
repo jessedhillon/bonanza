@@ -24,7 +24,7 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
     posted_date = Column(Date, nullable=False, index=True)
     ask = Column(Numeric(12, scale=2), nullable=False, index=True)
 
-    location = Column('location', Geometry('POINT', 4269), index=True)
+    location = Column('location', Geometry('POINT', 4326), index=True)
     geocluster_id = Column(Unicode(20), nullable=True, index=True)
     request_token = Column(Binary(16), index=True)
 
@@ -35,3 +35,26 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
     def make_key(cls, instance):
         j = json.dumps(instance.data)
         return sha1(j).hexdigest()
+
+
+class HomepathListing(Hashable, Recordable, Geometric, Model):
+    _key = HashableKey()
+
+    id = Column(Unicode(20), nullable=False, index=True)
+
+    baths = Column(Integer, index=True)
+    beds = Column(Integer, index=True)
+    price = Column(Numeric(18, scale=2), nullable=False, index=True)
+    status = Column(Unicode(20), nullable=False, index=True)
+    image_url = Column(Unicode(300))
+
+    location = Column(Geometry('POINT', 4326), index=True)
+    entry_date = Column(Date, nullable=False, index=True)
+
+    property_type = Column(Unicode(10), nullable=False, index=True)
+    street = Column(Unicode(200), nullable=False)
+    city = Column(Unicode(100), nullable=False)
+    state = Column(Unicode(8), nullable=False, index=True)
+
+    request_token = Column(Binary(16), index=True)
+    data = Column(JSON)

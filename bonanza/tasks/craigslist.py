@@ -1,18 +1,18 @@
-import logging
-import json
-import base64
-import requests
-from uuid import uuid4 as uuid
-from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
-import random
-from urlparse import urlunsplit
 from datetime import datetime
+from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 from sqlalchemy.orm.exc import NoResultFound
+from urlparse import urlunsplit
+from uuid import uuid4 as uuid
+import base64
+import json
+import logging
+import random
+import requests
 
-from bonanza.tasks import Task
-import bonanza.tasks.common as common
-import bonanza.models as models
 from bonanza.models.base import CraigslistListing
+from bonanza.tasks import Task
+import bonanza.models as models
+import bonanza.tasks.common as common
 
 
 logger = logging.getLogger(__name__)
@@ -46,18 +46,18 @@ class UrlProducerTask(Task):
                 self.produce_region(r, producer)
 
     def produce_region(self, r, producer):
-        logger.info("enqueueing subdomain", extra={'region': r})
-
+        logger.info("enqueueing subdomain", extra=dict(region=r))
         data = {
             'subdomain': r['region'],
             'endpoint': r['endpoint'],
             'name': r['name'],
             'state': r['state'],
         }
-        producer.publish(data,
-                         exchange=self.get_exchange('requests'),
-                         routing_key='requests.craigslist.subdomain',
-                         declare=[self.get_queue('requests')])
+        producer.publish(
+            data,
+            exchange=self.get_exchange('requests'),
+            routing_key='requests.craigslist.subdomain',
+            declare=[self.get_queue('requests')])
 
 
 class JsonSearchTask(Task):
@@ -101,6 +101,7 @@ class JsonSearchTask(Task):
                 return
 
             extra.update({
+                'token': token,
                 'count': len(results),
                 'query': query,
             })
@@ -127,9 +128,10 @@ class JsonSearchTask(Task):
                                 data,
                                 exchange=self.get_exchange('requests'),
                                 routing_key='requests.craigslist.geocluster',
-                                declare=[self.get_exchange('requests'),
-                                         self.get_queue('requests'),
-                                         self.get_queue('geocluster_requests')])
+                                declare=[
+                                    self.get_exchange('requests'),
+                                    self.get_queue('requests'),
+                                    self.get_queue('geocluster_requests')])
                 else:
                     data = {
                         '_token': token,
@@ -149,6 +151,7 @@ class JsonSearchTask(Task):
                                      self.get_queue('listings')])
 
             message.ack()
+
         except (HTTPError, ConnectionError, ConnectTimeout):
             logger.exception("request exception")
             message.requeue()
@@ -195,11 +198,13 @@ class ListingProcessorTask(Task):
                 self.update_listing(subdomain, listing, data)
             else:
                 listing = self.insert_listing(subdomain, data)
+
         except KeyError:
             logger.warning("received incomplete listing data", exc_info=True)
             message.ack()
             return
 
+        listing.data = data
         listing.request_token = token
         listing.geocluster_id = geocluster_id
         self.session.add(listing)
@@ -233,12 +238,13 @@ class ListingProcessorTask(Task):
         listing.bedrooms = self.parse_int(data['Bedrooms'])
         listing.posted_date = self.parse_date(data['PostedDate'])
         listing.ask = self.parse_float(data['Ask'])
-        listing.location = (map(self.parse_float,
-                               (data['Longitude'], data['Latitude'])),
-                            self.srid)
-        listing.data = data
+        listing.location = self.parse_location(data['Longitude'],
+                                               data['Latitude'])
 
         return listing
+
+    def parse_location(self, *coords):
+        return (map(self.parse_float, coords), self.srid)
 
     def parse_date(self, v):
         return datetime.fromtimestamp(int(v)).date()
