@@ -47,7 +47,7 @@ task.schedule =
     byminute = 0
     bysecond = 0
 task.exchanges = requests, listings
-task.queues = 
+task.queues =
     requests = requests-craigslist-subdomain
 
 [task:request_subdomain]
@@ -65,7 +65,7 @@ task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.workers = 2
 task.rate = 0.25
 task.exchanges = requests, listings
-task.queues = 
+task.queues =
     requests = requests-craigslist-geocluster
     listings = listings-craigslist
 
@@ -74,6 +74,33 @@ task.class = bonanza.tasks.craigslist:ListingProcessorTask
 task.workers = 4
 task.queues =
     listings = listings-craigslist
+
+[task:produce_homepath_searches]
+task.class = bonanza.tasks.homepath:UrlProducerTask
+task.workers = 1
+task.schedule =
+    freq = daily
+    byhour = 7
+    byminute = 0
+    bysecond = 0
+task.exchanges = requests, listings
+task.queues =
+    requests = requests-homepath-results
+
+[task:request_homepath_results]
+task.class = bonanza.tasks.homepath:JsonSearchTask
+task.rate = 1.0  ; per second
+task.workers = 4
+task.exchanges = requests, listings
+task.queues =
+    requests = requests-homepath-results
+    listings = listings-homepath
+
+[task:process_homepath_listings]
+task.class = bonanza.tasks.homepath:ListingProcessorTask
+task.workers = 4
+task.queues =
+    listings = listings-homepath
 
 [exchange:requests]
 type = topic
@@ -94,6 +121,14 @@ routing_key = requests.craigslist.geocluster
 [queue:listings-craigslist]
 exchange = listings
 routing_key = listings.craigslist
+
+[queue:requests-homepath-results]
+exchange = requests
+routing_key = requests.homepath.results
+
+[queue:listings-homepath]
+exchange = listings
+routing_key = listings.homepath
 
 [alembic]
 script_location = migrations
