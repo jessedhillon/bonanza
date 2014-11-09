@@ -1,5 +1,6 @@
 from datetime import datetime
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
+from socket import timeout
 from sqlalchemy.orm.exc import NoResultFound
 from uuid import uuid4 as uuid
 import base64
@@ -12,6 +13,7 @@ from bonanza.models.base import HomepathListing
 from bonanza.tasks import Task
 import bonanza.models as models
 import bonanza.tasks.common as common
+from pyquery import PyQuery
 
 
 logger = logging.getLogger(__name__)
@@ -90,7 +92,7 @@ class JsonSearchTask(Task):
                 while True:
                     if self.is_stopped:
                         return
-                    self.connection.drain_events()
+                    self.connection.drain_events(timeout=1)
         except:
             common.post_mortem()
 
@@ -143,6 +145,7 @@ class JsonSearchTask(Task):
                     data = {
                         '_token': token,
                         'data': l,
+                        'fragment': self.extract_fragment(l, j['fragments'])
                     }
                     producer.publish(
                         data,
@@ -169,6 +172,12 @@ class JsonSearchTask(Task):
             logger.exception("request exception")
             message.requeue()
 
+    @staticmethod
+    def extract_fragment(listing, fragments):
+        pq = PyQuery(fragments['results'])
+        selector = 'tr a.address[href$="{listingId}"]'.format(**listing)
+        return pq.find(selector).closest('tr').outerHtml()
+
 
 class ListingProcessorTask(Task):
     srid = 4326
@@ -185,16 +194,21 @@ class ListingProcessorTask(Task):
                 while True:
                     if self.is_stopped:
                         break
-                    self.connection.drain_events()
+
+                    try:
+                        self.connection.drain_events(timeout=1)
+                    except timeout:
+                        pass
 
             self.session.close()
             self.sql.close()
 
-        except Exception as e:
+        except:
             common.post_mortem()
 
     def receive(self, body, message):
         data = body['data']
+        fragment = body['fragment']
         token = base64.b64decode(body['_token']) if '_token' in body else None
 
         listing_id = data['listingId']
@@ -202,9 +216,9 @@ class ListingProcessorTask(Task):
 
         try:
             if listing is not None:
-                self.update_listing(listing, data)
+                self.update_listing(listing, data, fragment)
             else:
-                listing = self.insert_listing(data)
+                listing = self.insert_listing(data, fragment)
         except (ValueError, TypeError, KeyError):
             extra = {
                 'token': token,
@@ -214,6 +228,7 @@ class ListingProcessorTask(Task):
             message.ack()
             return
 
+        data['_fragment'] = fragment
         listing.data = data
         listing.request_token = token
         self.session.add(listing)
@@ -227,23 +242,23 @@ class ListingProcessorTask(Task):
         except NoResultFound:
             return None
 
-    def update_listing(self, listing, data):
+    def update_listing(self, listing, data, fragment):
         logger.info("updating listing", extra={'listing': data})
-        self.copy_json(listing, data)
+        self.copy_json(listing, data, fragment)
 
-    def insert_listing(self, data):
+    def insert_listing(self, data, fragment):
         logger.info("inserting listing", extra={'listing': data})
         listing = HomepathListing()
-        self.copy_json(listing, data)
+        self.copy_json(listing, data, fragment)
         return listing
 
-    def copy_json(self, listing, data):
+    def copy_json(self, listing, data, fragment):
         listing.id = data['listingId']
         listing.baths = self.parse_int(data['baths'])
         listing.beds = self.parse_int(data['beds'])
-        listing.status = data['status']
+        listing.status = self.parse_status(data['status'], fragment)
         listing.price = self.parse_price(data['price'])
-        listing.image_url = self.make_image_url(data)
+        listing.image_url = self.parse_image_url(fragment)
         listing.location = self.parse_location(data['lat'], data['lng'])
         listing.entry_date = self.parse_date(data['entryDate'])
         listing.property_type = data['propertyType']
@@ -260,6 +275,15 @@ class ListingProcessorTask(Task):
               "d={addressIdSimpleEnc}&"\
               "pse={photoIdSimpleEnc}"
         return fmt.format(**listing)
+
+    def parse_status(self, status, fragment):
+        if status != 'active':
+            return status
+
+        return PyQuery(fragment).find('td').eq(5).text().lower()
+
+    def parse_image_url(self, fragment):
+        return PyQuery(fragment).find('td').eq(0).find('img').attr('src')
 
     def parse_price(self, v):
         return int(self.price_pattern.sub('', v))
