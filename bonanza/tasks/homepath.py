@@ -135,7 +135,7 @@ class JsonSearchTask(Task):
                         logger.warn("ignoring non-priced listing", extra=extra)
                         continue
 
-                    if not l['lat'] or l['lng']:
+                    if not l['lat'] or not l['lng']:
                         logger.warn("ignoring non-geocoded listing",
                                     extra=extra)
                         continue
