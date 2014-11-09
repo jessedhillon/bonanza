@@ -34,6 +34,7 @@ setup = bonanza.scripts.shell.setup
 [task]
 kombu.broker_url = amqp://{{ rabbitmq.user.name }}:{{ rabbitmq.user.password }}@{{ rabbitmq.host }}/
 kombu.serializer = json
+kombu.prefetch_count = 10
 task.thread_name = {task_name}.{class_name}-{worker_number}
 
 [task:produce_subdomains]
