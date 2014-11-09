@@ -1,11 +1,13 @@
-import logging
-import time
 from datetime import datetime
 from dateutil.rrule import rrule
+from threading import Thread, Event, Lock
+import logging
+import time
 
 from kombu.common import maybe_declare
+from kombu import Consumer
+from kombu.pools import producers
 from kombu.utils.limits import TokenBucket
-from threading import Thread, Event, Lock
 
 
 logger = logging.getLogger(__name__)
@@ -15,23 +17,36 @@ class Task(Thread):
     exchanges = None
     queues = None
 
-    def __init__(self, task_name, worker_number, connection, **kwargs):
+    def __init__(self, task_name, worker_number, **kwargs):
         self.task_name = task_name
         self.worker_number = worker_number
         super(Task, self).__init__()
-
-        self.connection = connection
-
         logger.info("task thread {} initialized".format(self.name))
 
         for k, v in kwargs.items():
             setattr(self, k, v)
         self._stop = Event()
 
-    def connect(self):
+    def connect(self, connection):
+        self.connection = connection
         self.channel = self.connection.channel()
+        self.channel.basic_qos(_global=False, **self.qos)
         self.declare_exchanges()
         self.declare_queues()
+
+    def receive(self, body, message):
+        raise NotImplementedError()
+
+    def get_consumer(self, *queues, **kwargs):
+        if 'callbacks' not in kwargs:
+            callbacks = [self.receive]
+
+        return Consumer(self.channel,
+                        queues=[self.get_queue(q) for q in queues],
+                        callbacks=callbacks, **kwargs)
+
+    def get_producer(self, block=True):
+        return producers[self.connection].acquire(block)
 
     @property
     def name(self):
@@ -49,6 +64,11 @@ class Task(Thread):
 
         if 'rate' in kwargs:
             cls.set_rate(**kwargs['rate'])
+
+        cls.qos = {
+            'prefetch_size': int(kwargs.get('prefetch_size', 0)),
+            'prefetch_count': int(kwargs.get('prefetch_count', 1))
+        }
 
         cls.queues = queues
         cls.exchanges = exchanges
@@ -78,8 +98,8 @@ class Task(Thread):
 
         diff = t - datetime.now()
 
-        logger.debug("next occurrence in {:0.0f}s".
-                     format(diff.total_seconds()))
+        logger.debug("next occurrence in {:0.1f}h".
+                     format(diff.total_seconds() / (60 * 60)))
 
         while diff.total_seconds() > 0:
             if self.is_stopped:
