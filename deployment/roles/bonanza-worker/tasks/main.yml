@@ -1,11 +1,24 @@
 ---
-- name: install bonanza supervisor configuration
+- name: install craigslist worker supervisor configuration
   sudo: true
   tags:
     - bonanza
     - supervisor
+    - craigslist
   copy:
     src: supervisord.conf.d/bonanza-craigslist-worker.conf
     dest: /etc/supervisor/conf.d/bonanza-craigslist-worker.conf
+  notify:
+    - restart supervisord
+
+- name: install homepath worker supervisor configuration
+  sudo: true
+  tags:
+    - bonanza
+    - supervisor
+    - homepath
+  copy:
+    src: supervisord.conf.d/bonanza-homepath-worker.conf
+    dest: /etc/supervisor/conf.d/bonanza-homepath-worker.conf
   notify:
     - restart supervisord
