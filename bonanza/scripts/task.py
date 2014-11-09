@@ -62,16 +62,17 @@ def run_task(arguments, settings):
                 pass
         args.update(d)
 
-    logger.info("starting {} worker threads".format(workers))
+    logger.info("spawning {} worker threads".format(workers))
     threads = []
     task = tasks.common.configure_task(task_name, workers)
+    conn = tasks.common.get_connection(task_name)
+    pool = conn.ChannelPool(workers)
     for i in range(workers):
         conf = config.copy()
         conf.update(args)
 
-        conn = tasks.common.get_connection(task_name)
-        t = task(task_name, i, conn, **conf)
-        t.daemon = True
+        t = task(task_name, i, daemon=True, **conf)
+        t.connect(conn.clone())
         t.start()
         threads.append(t)
 

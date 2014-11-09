@@ -23,7 +23,6 @@ class UrlProducerTask(Task):
 
     def run(self):
         try:
-            self.connect()
             while True:
                 if not self.run_once:
                     self.sleep_until(self.next_occurrence)
@@ -42,7 +41,7 @@ class UrlProducerTask(Task):
             regions = json.loads(f.read())
             random.shuffle(regions)
 
-        with common.get_producer(self.connection) as producer:
+        with self.get_producer() as producer:
             for i, r in enumerate(regions):
                 self.produce_region(r, producer)
 
@@ -70,12 +69,7 @@ class JsonSearchTask(Task):
 
     def run(self):
         try:
-            self.connect()
-            self.channel.basic_qos(0, 1, False)
-
-            with self.connection.Consumer(queues=[self.get_queue('requests')],
-                                          callbacks=[self.receive],
-                                          channel=self.channel):
+            with self.get_consumer('requests'):
                 while True:
                     if self.is_stopped:
                         return
@@ -128,7 +122,7 @@ class JsonSearchTask(Task):
                             'geocluster_id': l['GeoCluster']
                         }
 
-                        with common.get_producer(self.connection) as producer:
+                        with self.get_producer() as producer:
                             producer.publish(
                                 data,
                                 exchange=self.get_exchange('requests'),
@@ -146,7 +140,7 @@ class JsonSearchTask(Task):
                     if 'geocluster_id' in body:
                         data['geocluster_id'] = body['geocluster_id']
 
-                    with common.get_producer(self.connection) as producer:
+                    with self.get_producer() as producer:
                         producer.publish(
                             data,
                             exchange=self.get_exchange('listings'),
@@ -170,25 +164,19 @@ class ListingProcessorTask(Task):
 
     def __init__(self, *args, **kwargs):
         super(ListingProcessorTask, self).__init__(*args, **kwargs)
-        self.conn = models.engine.connect()
-        self.session = models.Session(bind=self.conn)
+        self.sql = models.engine.connect()
+        self.session = models.Session(bind=self.sql)
 
     def run(self):
         try:
-            self.connect()
-            self.channel.basic_qos(0, 1, False)
-
-            with self.connection.Consumer(
-                    queues=[self.get_queue('listings')],
-                    callbacks=[self.receive],
-                    channel=self.channel):
+            with self.get_consumer('listings'):
                 while True:
                     if self.is_stopped:
                         break
                     self.connection.drain_events()
 
             self.session.close()
-            self.conn.close()
+            self.sql.close()
 
         except:
             common.post_mortem()

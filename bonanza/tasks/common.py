@@ -60,7 +60,8 @@ def configure_task(task_name, workers):
     global _config
 
     config = _config[task_name]
-    tc = util.prefixed_keys(config, 'task.')
+    tc = util.prefixed_keys(config, 'kombu.')
+    tc.update(util.prefixed_keys(config, 'task.'))
 
     resolver = DottedNameResolver()
     cls = resolver.resolve(tc['class'])
