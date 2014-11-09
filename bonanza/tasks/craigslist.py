@@ -1,5 +1,6 @@
 from datetime import datetime
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
+from socket import timeout
 from sqlalchemy.orm.exc import NoResultFound
 from urlparse import urlunsplit
 from uuid import uuid4 as uuid
@@ -73,7 +74,11 @@ class JsonSearchTask(Task):
                 while True:
                     if self.is_stopped:
                         return
-                    self.connection.drain_events()
+
+                    try:
+                        self.connection.drain_events(timeout=1)
+                    except timeout:
+                        pass
         except:
             common.post_mortem()
 
@@ -176,7 +181,11 @@ class ListingProcessorTask(Task):
                 while True:
                     if self.is_stopped:
                         break
-                    self.connection.drain_events()
+
+                    try:
+                        self.connection.drain_events(timeout=1)
+                    except timeout:
+                        pass
 
             self.session.close()
             self.sql.close()
