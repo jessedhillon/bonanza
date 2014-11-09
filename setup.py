@@ -10,6 +10,7 @@ requires = [
     'alembic',
     'docopt',
     'geoalchemy2',
+    'librabbitmq',
     'kombu',
     'paster',
     'psycopg2',
