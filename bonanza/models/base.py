@@ -77,3 +77,8 @@ class CensusBlock(Geometric, Model):
     block_ce = Column(Unicode(1), primary_key=True)
 
     geometry = Column(Geometry('MULTIPOLYGON', 4326, spatial_index=False))
+
+    @property
+    def geo_id(self):
+        return "{state_fp}{county_fp}{tract_ce}{block_ce}"\
+               .format(**self.__dict__)
