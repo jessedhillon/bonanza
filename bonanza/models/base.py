@@ -1,9 +1,9 @@
 import json
 from hashlib import sha1
 
-from sqlalchemy.schema import Column
-from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric, Date,\
-        Binary
+from sqlalchemy.schema import Column, Index
+from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric,\
+    Date, Binary
 from sqlalchemy.dialects.postgresql import JSON
 from geoalchemy2 import Geometry
 from batteries.model import Model
@@ -13,6 +13,9 @@ from batteries.model.geometric import Geometric
 
 
 class CraigslistListing(Hashable, Recordable, Geometric, Model):
+    __table_args__ = (Index('idx_craigslist_listing_location', 'location',
+                            postgresql_using='gist'),)
+
     _key = HashableKey()
 
     id = Column(Unicode(20), nullable=False, index=True)
@@ -38,6 +41,9 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
 
 
 class HomepathListing(Hashable, Recordable, Geometric, Model):
+    __table_args__ = (Index('ix_homepath_listing_location', 'location',
+                            postgresql_using='gist'),)
+
     _key = HashableKey()
 
     id = Column(Unicode(20), nullable=False, index=True)
@@ -48,7 +54,7 @@ class HomepathListing(Hashable, Recordable, Geometric, Model):
     status = Column(Unicode(20), nullable=False, index=True)
     image_url = Column(Unicode(300))
 
-    location = Column(Geometry('POINT', 4326), index=True)
+    location = Column(Geometry('POINT', 4326))
     entry_date = Column(Date, nullable=False, index=True)
 
     property_type = Column(Unicode(10), nullable=False, index=True)
@@ -58,3 +64,16 @@ class HomepathListing(Hashable, Recordable, Geometric, Model):
 
     request_token = Column(Binary(16), index=True)
     data = Column(JSON)
+
+
+# http://proximityone.com/dataresources/guide/index.html?tl_2013_stcty_bg.htm
+class CensusBlock(Geometric, Model):
+    __table_args__ = (Index('ix_census_block_geometry', 'geometry',
+                            postgresql_using='gist'),)
+
+    state_fp = Column(Unicode(2), primary_key=True)
+    county_fp = Column(Unicode(3), primary_key=True)
+    tract_ce = Column(Unicode(6), primary_key=True)
+    block_ce = Column(Unicode(1), primary_key=True)
+
+    geometry = Column(Geometry('MULTIPOLYGON', 4326, spatial_index=False))
