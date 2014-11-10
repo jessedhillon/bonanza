@@ -13,7 +13,7 @@ from batteries.model.geometric import Geometric
 
 
 class CraigslistListing(Hashable, Recordable, Geometric, Model):
-    __table_args__ = (Index('idx_craigslist_listing_location', 'location',
+    __table_args__ = (Index('ix_craigslist_listing_location', 'location',
                             postgresql_using='gist'),)
 
     _key = HashableKey()
@@ -27,7 +27,7 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
     posted_date = Column(Date, nullable=False, index=True)
     ask = Column(Numeric(12, scale=2), nullable=False, index=True)
 
-    location = Column('location', Geometry('POINT', 4326), index=True)
+    location = Column('location', Geometry('POINT', 4326, spatial_index=False))
     geocluster_id = Column(Unicode(20), nullable=True, index=True)
     request_token = Column(Binary(16), index=True)
 
@@ -54,7 +54,7 @@ class HomepathListing(Hashable, Recordable, Geometric, Model):
     status = Column(Unicode(20), nullable=False, index=True)
     image_url = Column(Unicode(300))
 
-    location = Column(Geometry('POINT', 4326))
+    location = Column(Geometry('POINT', 4326, spatial_index=False))
     entry_date = Column(Date, nullable=False, index=True)
 
     property_type = Column(Unicode(10), nullable=False, index=True)
