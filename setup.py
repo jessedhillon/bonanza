@@ -9,9 +9,10 @@ changes = open(os.path.join(here, 'CHANGES.rst')).read()
 requires = [
     'alembic',
     'docopt',
+    'fiona',
     'geoalchemy2',
-    'librabbitmq',
     'kombu',
+    'librabbitmq',
     'paster',
     'psycopg2',
     'pyquery',
@@ -58,8 +59,7 @@ setup(
         'console_scripts': [
             'populate_bonanza = bonanza.scripts.populate:main',
             'task = bonanza.scripts.task:main',
-            'consumer = bonanza.scripts.consumer:main',
-            'producer = bonanza.scripts.producer:main',
+            'import_shapefile = bonanza.scripts.import_shapefile:main',
         ]
     },
 )
