@@ -26,7 +26,7 @@ requires = [
     'raven',
     'requests==2.4.1',
     'SQLAlchemy==0.9.7',
-    'sqlalchemy-batteries>=0.4.2',
+    'sqlalchemy-batteries>=0.4.3',
     'transaction',
     'waitress',
     'zope.sqlalchemy',

@@ -27,6 +27,7 @@ apt_install:
   - { name: 'tzdata', version: '2014e-0ubuntu0.14.04' }
   - { name: 'vim-nox', version: '2:7.4.052-1ubuntu3' }
   - { name: 'htop', version: '1.0.2-3' }
+  - { name: 'unzip', version: '6.0-9ubuntu1' }
 
 apt_deinstall:
   - 'apport'
