@@ -263,7 +263,7 @@ class ListingProcessorTask(Task):
         listing.status = self.parse_status(data['status'], fragment)
         listing.price = self.parse_price(data['price'])
         listing.image_url = self.parse_image_url(fragment)
-        listing.location = self.parse_location(data['lat'], data['lng'])
+        listing.location = self.parse_location(data['lng'], data['lat'])
         listing.entry_date = self.parse_date(data['entryDate'])
         listing.property_type = data['propertyType']
         listing.street = data['street']
