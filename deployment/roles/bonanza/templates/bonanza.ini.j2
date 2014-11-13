@@ -190,7 +190,7 @@ formatter = generic
 [handler_sentry]
 class = raven.handlers.logging.SentryHandler
 args = ('http://{{ sentry.project.api_key }}@{{ sentry.host }}:{{ sentry.port }}/{{ sentry.project.id }}',)
-level = INFO
+level = WARNING
 formatter = generic
 
 [formatter_generic]
