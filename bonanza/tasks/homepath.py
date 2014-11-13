@@ -1,7 +1,6 @@
 from datetime import datetime
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 from socket import timeout
-from sqlalchemy.orm.exc import NoResultFound
 from uuid import uuid4 as uuid
 import base64
 import logging
@@ -9,7 +8,10 @@ import random
 import re
 import requests
 
-from bonanza.models.base import HomepathListing
+from sqlalchemy import func
+from sqlalchemy.orm.exc import NoResultFound
+
+from bonanza.models.base import HomepathListing, CensusBlock
 from bonanza.tasks import Task
 import bonanza.models as models
 import bonanza.tasks.common as common
@@ -235,6 +237,16 @@ class ListingProcessorTask(Task):
         data['_fragment'] = fragment
         listing.data = data
         listing.request_token = token
+
+        try:
+            within = func.st_within(listing.location.to_wkb(), CensusBlock.geometry)
+            census_block = self.session.query(CensusBlock).filter(within).one()
+            listing.census_block = census_block
+        except NoResultFound:
+            logger.warning("ignoring unlocatable listing", extra=dict(listing=data))
+            message.ack()
+            return
+
         self.session.add(listing)
         self.session.commit()
         message.ack()
@@ -263,7 +275,7 @@ class ListingProcessorTask(Task):
         listing.status = self.parse_status(data['status'], fragment)
         listing.price = self.parse_price(data['price'])
         listing.image_url = self.parse_image_url(fragment)
-        listing.location = self.parse_location(data['lat'], data['lng'])
+        listing.location = self.parse_location(data['lng'], data['lat'])
         listing.entry_date = self.parse_date(data['entryDate'])
         listing.property_type = data['propertyType']
         listing.street = data['street']

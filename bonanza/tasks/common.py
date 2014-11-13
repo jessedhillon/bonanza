@@ -1,7 +1,8 @@
 import os
 import logging
 from ConfigParser import ConfigParser
-from dateutil.rrule import YEARLY, MONTHLY, WEEKLY, DAILY, HOURLY, MINUTELY, SECONDLY
+from dateutil.rrule import YEARLY, MONTHLY, WEEKLY, DAILY, HOURLY, MINUTELY,\
+    SECONDLY, MO, TU, WE, TH, FR, SA, SU
 
 from pyramid.path import DottedNameResolver
 from kombu import Connection, Exchange, Queue
@@ -137,12 +138,27 @@ def _parse_schedule(sched):
         'secondly': SECONDLY
     }
 
+    days = {
+        'monday': MO,
+        'tuesday': TU,
+        'wednesday': WE,
+        'thursday': TH,
+        'friday': FR,
+        'saturday': SA,
+        'sunday': SU
+    }
+
     if 'freq' in sched:
         f = sched['freq'].lower()
         sched['freq'] = freqs[f]
 
+    if 'byweekday' in sched:
+        d = sched['byweekday'].lower()
+        sched['byweekday'] = [days.get(day) for day in util.as_list(d)]
+
     for k, v in sched.items():
-        sched[k] = int(v)
+        if isinstance(v, basestring):
+            sched[k] = int(v)
 
     return sched
 

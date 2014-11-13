@@ -80,7 +80,8 @@ task.queues =
 task.class = bonanza.tasks.homepath:UrlProducerTask
 task.workers = 1
 task.schedule =
-    freq = daily
+    freq = weekly
+    byweekday = tuesday, friday
     byhour = 7
     byminute = 0
     bysecond = 0
@@ -189,7 +190,7 @@ formatter = generic
 [handler_sentry]
 class = raven.handlers.logging.SentryHandler
 args = ('http://{{ sentry.project.api_key }}@{{ sentry.host }}:{{ sentry.port }}/{{ sentry.project.id }}',)
-level = INFO
+level = WARNING
 formatter = generic
 
 [formatter_generic]
