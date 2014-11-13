@@ -1,7 +1,6 @@
 from datetime import datetime
 from requests.exceptions import ConnectionError, HTTPError, ConnectTimeout
 from socket import timeout
-from sqlalchemy.orm.exc import NoResultFound
 from urlparse import urlunsplit
 from uuid import uuid4 as uuid
 import base64
@@ -10,7 +9,10 @@ import logging
 import random
 import requests
 
-from bonanza.models.base import CraigslistListing
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func
+
+from bonanza.models.base import CraigslistListing, CensusBlock
 from bonanza.tasks import Task
 import bonanza.models as models
 import bonanza.tasks.common as common
@@ -216,6 +218,16 @@ class ListingProcessorTask(Task):
         listing.data = data
         listing.request_token = token
         listing.geocluster_id = geocluster_id
+
+        try:
+            within = func.st_within(listing.location.to_wkb(), CensusBlock.geometry)
+            census_block = self.session.query(CensusBlock).filter(within).one()
+            listing.census_block = census_block
+        except NoResultFound:
+            logger.warning("ignoring unlocatable listing", extra=dict(listing=data))
+            message.ack()
+            return
+
         self.session.add(listing)
         self.session.commit()
         message.ack()
