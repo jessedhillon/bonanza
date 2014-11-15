@@ -42,7 +42,7 @@ class AnalysisProducerTask(Task):
 
     def process_blocks(self):
         threshold = date.today() - timedelta(days=self.threshold)
-        threshold = datetime.combine(threshold, datetime.min).replace(tzinfo=tzutc())
+        threshold = datetime.combine(threshold, datetime.min.time()).replace(tzinfo=tzutc())
         rental_blocks = self.session.query(CensusBlock)\
                                     .join(CraigslistListing)\
                                     .filter(CraigslistListing.ctime >= threshold)\
