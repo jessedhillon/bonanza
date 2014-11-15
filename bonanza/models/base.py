@@ -2,11 +2,12 @@ import json
 from hashlib import sha1
 
 from sqlalchemy import func
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.schema import Column, Index, ForeignKey, ForeignKeyConstraint
-from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric,\
-    Date, Binary
+from sqlalchemy.schema import Column, Index, ForeignKey, ForeignKeyConstraint, Table
+from sqlalchemy.types import Unicode, UnicodeText, Integer, Numeric, Date, Binary
 from sqlalchemy.dialects.postgresql import JSON
 from geoalchemy2 import Geometry
 from batteries.model import Model
@@ -89,25 +90,84 @@ class HomepathListing(Hashable, Recordable, Geometric, Model):
     request_token = Column(Binary(16), index=True)
     data = Column(JSON)
 
+    state_fp = Column(Unicode(2), nullable=False)
+    county_fp = Column(Unicode(3), nullable=False)
+    tract_ce = Column(Unicode(6), nullable=False)
+    block_ce = Column(Unicode(1), nullable=False)
+
+    census_block = relationship('CensusBlock')
+
 
 class Dimension(Model):
+    __identifiers__ = ('id', 'name')
+
     id = Column(Unicode(20), primary_key=True)
     name = Column(Unicode(100), nullable=False)
+
+    segments = relationship('Segment', order_by='Segment.sort_value.asc()')
 
 
 class Segment(Model):
+    __identifiers__ = ('dimension_id', 'id', 'name')
+
     dimension_id = Column(Unicode(20), ForeignKey('dimension.id'), primary_key=True)
     id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=True)
+
+    numeric_value = Column(Numeric(10, scale=2))
+    string_value = Column(Unicode(100))
+    sort_value = Column(Unicode(10), nullable=False)
+
+    dimension = relationship('Dimension')
+
+    @property
+    def value(self):
+        return self.string_value or self.numeric_value
+
+    @value.setter
+    def value(self, v):
+        try:
+            self.numeric_value = float(v)
+        except ValueError:
+            self.string_value = v
+
+
+class Concept(Model):
+    id = Column(Unicode(20), primary_key=True)
     name = Column(Unicode(100), nullable=False)
+    description = Column(UnicodeText)
+
+
+class Feature(Model):
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+    description = Column(UnicodeText)
 
 
 class Series(Hashable, Model):
+    __identifiers__ = ('concept_id', 'feature_id', 'duration')
+
     _key = HashableKey()
 
-    concept_key = HashableReference('concept')
+    concept_id = Column(Unicode(20), ForeignKey('concept.id'))
+    feature_id = Column(Unicode(20), ForeignKey('feature.id'))
     duration = Column(Integer, index=True)
 
-    segments = relationship('Segment')
+    segments = relationship('Segment', secondary='series_segment',
+                            order_by='Segment.sort_value.asc()')
+    concept = relationship('Concept')
+    feature = relationship('Feature')
+    _measures = relationship('Measure', order_by='Measure.date.asc()',
+                             collection_class=attribute_mapped_collection('date'))
+    measures = association_proxy('_measures', 'value',
+                                 creator=lambda d, v: Measure(date=d, value=v))
+
+    @property
+    def name(self):
+        segments = ["{}: {}".format(s.dimension.name, s.name) for s in self.segments]
+        return "{concept.name} {duration}-day {feature.name} - {segments}"\
+            .format(concept=self.concept, duration=self.duration,
+                    feature=self.feature, segments=', '.join(segments))
 
 
 class Measure(Model):
@@ -115,13 +175,6 @@ class Measure(Model):
     id = Column(Integer, primary_key=True)
     date = Column(Date, nullable=False, index=True)
     value = Column(Numeric(20, scale=2), nullable=False, index=True)
-
-    state_fp = Column(Unicode(2), nullable=False)
-    county_fp = Column(Unicode(3), nullable=False)
-    tract_ce = Column(Unicode(6), nullable=False)
-    block_ce = Column(Unicode(1), nullable=False)
-
-    census_block = relationship('CensusBlock')
 
 
 # http://proximityone.com/dataresources/guide/index.html?tl_2013_stcty_bg.htm
@@ -195,6 +248,13 @@ class CensusBlock(Geometric, Model):
 
     geometry = Column(Geometry('MULTIPOLYGON', 4326, spatial_index=False))
 
+    craigslist_listings = relationship('CraigslistListing', lazy='dynamic',
+                                       order_by='CraigslistListing.ctime.asc()')
+    homepath_listings = relationship('HomepathListing', lazy='dynamic',
+                                     order_by='HomepathListing.ctime.asc()')
+
+    series = relationship('Series', secondary='census_block_series')
+
     @classmethod
     def get_by_point(cls, point):
         try:
@@ -218,3 +278,23 @@ class CensusBlock(Geometric, Model):
         return CensusBlock.states_by_fips\
                           .get(self.state_fp, {})\
                           .get('abbreviation')
+
+
+Table('series_segment', Model.metadata,
+      Column('series_key', Unicode(40), ForeignKey('series.key'), primary_key=True),
+      Column('dimension_id', Unicode(20), ForeignKey('dimension.id'), primary_key=True),
+      Column('segment_id', Unicode(20), primary_key=True),
+      ForeignKeyConstraint(['dimension_id', 'segment_id'],
+                           ['segment.dimension_id', 'segment.id'],
+                           name='fk_series_segment'))
+
+Table('census_block_series', Model.metadata,
+      Column('state_fp', Unicode(2), primary_key=True),
+      Column('county_fp', Unicode(3), primary_key=True),
+      Column('tract_ce', Unicode(6), primary_key=True),
+      Column('block_ce', Unicode(1), primary_key=True),
+      Column('series_key', Unicode(40), ForeignKey('series.key'), primary_key=True),
+      ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
+                           ['census_block.state_fp', 'census_block.county_fp',
+                            'census_block.tract_ce', 'census_block.block_ce'],
+                           name='fk_census_block_series'))

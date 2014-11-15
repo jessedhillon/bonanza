@@ -53,6 +53,15 @@
     executable=/bin/bash
     source `which virtualenvwrapper.sh` && workon bonanza && cd ~bonanza/bonanza && alembic -c ~bonanza/bonanza/bonanza.ini upgrade head
 
+- name: install bonanza fixtures
+  tags:
+    - bonanza
+    - database
+  remote_user: bonanza
+  shell: >
+    executable=/bin/bash
+    source `which virtualenvwrapper.sh` && workon bonanza && cd ~bonanza/bonanza && populate_bonanza
+
 - name: create bonanza log directory
   tags: 
     - bonanza

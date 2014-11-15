@@ -74,6 +74,7 @@ def run_task(arguments, settings):
         t = task(task_name, i, daemon=True, **conf)
         t.connect(conn.clone())
         t.start()
+        time.sleep(0.8)
         threads.append(t)
 
     signal.signal(signal.SIGINT, make_signal_handler(threads))
