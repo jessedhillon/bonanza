@@ -43,29 +43,24 @@ class AnalysisProducerTask(Task):
     def process_blocks(self):
         threshold = date.today() - timedelta(days=self.threshold)
         threshold = datetime.combine(threshold, datetime.min.time()).replace(tzinfo=tzutc())
-        rental_blocks = self.session.query(CensusBlock)\
-                                    .join(CraigslistListing)\
-                                    .filter(CraigslistListing.ctime >= threshold)\
-                                    .group_by(CensusBlock.state_fp, CensusBlock.county_fp,
-                                              CensusBlock.tract_ce, CensusBlock.block_ce)\
-                                    .having(func.count(CraigslistListing.key) > 0)
+        rental_query = self.session.query(CensusBlock)\
+                                   .join(CraigslistListing)\
+                                   .filter(CraigslistListing.ctime >= threshold)\
+                                   .group_by(CensusBlock.state_fp, CensusBlock.county_fp,
+                                             CensusBlock.tract_ce, CensusBlock.block_ce)\
+                                   .having(func.count(CraigslistListing.key) > 0)
 
-        homepath_blocks = self.session.query(CensusBlock)\
-                                      .join(HomepathListing)\
-                                      .group_by(CensusBlock.state_fp, CensusBlock.county_fp,
-                                                CensusBlock.tract_ce, CensusBlock.block_ce)\
-                                      .having(func.count(HomepathListing.key) > 0)
+        count = rental_query.count()
+        logger.info("enqueueing {} blocks with rental listings".format(count))
 
         with self.get_producer() as producer:
-            for b in rental_blocks:
-                if self.is_stopped:
-                    break
-                self.produce_craigslist_block(b, producer)
-
-            for b in homepath_blocks:
-                if self.is_stopped:
-                    break
-                self.produce_homepath_block(b, producer)
+            offset = 0
+            while offset < count:
+                for b in rental_query.limit(500).offset(offset):
+                    if self.is_stopped:
+                        break
+                    self.produce_craigslist_block(b, producer)
+                    offset += 100
 
     def produce_craigslist_block(self, block, producer):
         extra = {

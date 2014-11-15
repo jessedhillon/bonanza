@@ -64,6 +64,8 @@ class UrlProducerTask(Task):
 
 
 class JsonSearchTask(Task):
+    geocluster_threshold = 10
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux i686) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -120,7 +122,7 @@ class JsonSearchTask(Task):
 
             for l in results:
                 if 'GeoCluster' in l:
-                    if int(l['NumPosts']) >= 8:
+                    if int(l['NumPosts']) >= self.geocluster_threshold:
                         data = {
                             '_token': token,
                             'subdomain': body['subdomain'],
