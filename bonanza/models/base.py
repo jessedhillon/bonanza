@@ -25,7 +25,9 @@ class CraigslistListing(Hashable, Recordable, Geometric, Model):
                               'census_block.county_fp',
                               'census_block.tract_ce',
                               'census_block.block_ce'],
-                             name='fk_craigslist_listing_census_block'))
+                             name='fk_craigslist_listing_census_block'),
+        Index('ix_craigslist_listing_census_block', 'state_fp', 'county_fp',
+              'tract_ce', 'block_ce'))
 
     _key = HashableKey()
 
