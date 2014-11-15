@@ -55,7 +55,7 @@ class AnalysisProducerTask(Task):
                     if self.is_stopped:
                         break
                     self.produce_craigslist_block(b, producer)
-                    offset += 100
+                offset += 500
 
     def produce_craigslist_block(self, block, producer):
         extra = {
