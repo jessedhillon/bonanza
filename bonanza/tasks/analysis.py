@@ -43,12 +43,7 @@ class AnalysisProducerTask(Task):
     def process_blocks(self):
         threshold = date.today() - timedelta(days=self.threshold)
         threshold = datetime.combine(threshold, datetime.min.time()).replace(tzinfo=tzutc())
-        rental_query = self.session.query(CensusBlock)\
-                                   .join(CraigslistListing)\
-                                   .filter(CraigslistListing.ctime >= threshold)\
-                                   .group_by(CensusBlock.state_fp, CensusBlock.county_fp,
-                                             CensusBlock.tract_ce, CensusBlock.block_ce)\
-                                   .having(func.count(CraigslistListing.key) > 0)
+        rental_query = self.session.query(CensusBlock)
 
         count = rental_query.count()
         logger.info("enqueueing {} blocks with rental listings".format(count))
@@ -136,9 +131,12 @@ class CensusBlockAnalysisTask(Task):
         rent_ask = self.session.query(Feature).get('rent-ask')
 
         if body['listing_type'] == 'rental' and body['source'] == 'craigslist':
-            listings = self.session.query(CraigslistListing)\
-                                   .filter(CraigslistListing.key.in_(body['listings']))\
-                                   .all()
+            if body['listings']:
+                listings = self.session.query(CraigslistListing)\
+                                       .filter(CraigslistListing.key.in_(body['listings']))\
+                                       .all()
+            else:
+                listings = []
 
             logger.info("processing rental listings for census block")
             for duration in [1, 7, 14, 28]:
