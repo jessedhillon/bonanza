@@ -62,6 +62,8 @@ task.queues =
     listings = listings-craigslist
 
 [task:request_geocluster]
+geocluster_threshold = 20
+
 task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.workers = 2
 task.rate = 0.25
@@ -104,11 +106,34 @@ task.workers = 4
 task.queues =
     listings = listings-homepath
 
+[task:produce_analysis]
+task.class = bonanza.tasks.analysis:AnalysisProducerTask
+task.workers = 1
+task.schedule =
+    freq = daily
+    byhour = 7
+    byminute = 0
+    bysecond = 0
+task.exchanges = analysis
+task.queues =
+    analysis_blocks = analysis-blocks
+
+[task:analyze_blocks]
+task.class = bonanza.tasks.analysis:CensusBlockAnalysisTask
+task.workers = 3
+task.exchanges = analysis
+task.queues =
+    analysis_blocks = analysis-blocks
+
 [exchange:requests]
 type = topic
 durable = true
 
 [exchange:listings]
+type = topic
+durable = true
+
+[exchange:analysis]
 type = topic
 durable = true
 
@@ -131,6 +156,10 @@ routing_key = requests.homepath.results
 [queue:listings-homepath]
 exchange = listings
 routing_key = listings.homepath
+
+[queue:analysis-blocks]
+exchange = analysis
+routing_key = analysis.census_blocks.*
 
 [alembic]
 script_location = migrations

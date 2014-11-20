@@ -8,7 +8,7 @@ apt_install:
   - { name: 'file', version: '1:5.14-2ubuntu3.1' }
   - { name: 'git', version: '1:1.9.1-1' }
   - { name: 'libcurl3', version: '7.35.0-1ubuntu2.1' }
-  - { name: 'libcurl3-gnutls', version: '7.35.0-1ubuntu2.1' }
+  - { name: 'libcurl3-gnutls', version: '7.35.0-1ubuntu2.2' }
   - { name: 'libgnutls-openssl27', version: '2.12.23-12ubuntu2.1' }
   - { name: 'libgnutls26', version: '2.12.23-12ubuntu2.1' }
   - { name: 'libpq-dev', version: '9.3.5-0ubuntu0.14.04.1' }

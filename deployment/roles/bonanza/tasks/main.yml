@@ -1,4 +1,13 @@
 ---
+- name: stop supervisord
+  sudo: true
+  tags:
+    - bonanza
+    - supervisor
+  service:
+    name: supervisor
+    state: stopped
+
 - name: clone application repository
   tags:
     - bonanza
