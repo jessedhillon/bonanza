@@ -22,3 +22,15 @@
     dest: /etc/supervisor/conf.d/bonanza-homepath-worker.conf
   notify:
     - restart supervisord
+
+- name: install analysis worker supervisor configuration
+  sudo: true
+  tags:
+    - bonanza
+    - supervisor
+    - analysis
+  copy:
+    src: supervisord.conf.d/bonanza-analysis-worker.conf
+    dest: /etc/supervisor/conf.d/bonanza-analysis-worker.conf
+  notify:
+    - restart supervisord

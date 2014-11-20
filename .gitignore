@@ -1,3 +1,5 @@
+alembic.ini
+staging.ini
 development.ini
 bonanza.ini
 log/*
