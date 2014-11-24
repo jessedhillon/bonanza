@@ -79,7 +79,6 @@ class JsonSearchTask(Task):
 
     @proxies.setter
     def proxies(self, v):
-        import pdb; pdb.set_trace()
         if isinstance(v, basestring):
             v = map(lambda s: s.strip(), v.strip().split("\n"))
         self._proxies = v
