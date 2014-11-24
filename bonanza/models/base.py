@@ -1,6 +1,8 @@
 import json
 from hashlib import sha1
 
+import numpy
+
 from sqlalchemy import func
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
@@ -14,169 +16,6 @@ from batteries.model import Model
 from batteries.model.hashable import Hashable, HashableKey, HashableReference
 from batteries.model.recordable import Recordable
 from batteries.model.geometric import Geometric
-
-
-class CraigslistListing(Hashable, Recordable, Geometric, Model):
-    __table_args__ = (
-        Index('ix_craigslist_listing_location', 'location',
-              postgresql_using='gist'),
-        ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
-                             ['census_block.state_fp',
-                              'census_block.county_fp',
-                              'census_block.tract_ce',
-                              'census_block.block_ce'],
-                             name='fk_craigslist_listing_census_block'),
-        Index('ix_craigslist_listing_census_block', 'state_fp', 'county_fp',
-              'tract_ce', 'block_ce'))
-
-    _key = HashableKey()
-
-    id = Column(Unicode(20), nullable=False, index=True)
-    title = Column(UnicodeText, nullable=False)
-    relative_url = Column(Unicode(200), nullable=False)
-    image_thumbnail_url = Column(Unicode(300))
-
-    bedrooms = Column(Integer, index=True)
-    posted_date = Column(Date, nullable=False, index=True)
-    ask = Column(Numeric(12, scale=2), nullable=False, index=True)
-
-    location = Column('location', Geometry('POINT', 4326, spatial_index=False))
-    geocluster_id = Column(Unicode(20), nullable=True, index=True)
-    request_token = Column(Binary(16), index=True)
-
-    subdomain = Column(Unicode(100), nullable=False, index=True)
-    data = Column(JSON)
-
-    state_fp = Column(Unicode(2), nullable=False)
-    county_fp = Column(Unicode(3), nullable=False)
-    tract_ce = Column(Unicode(6), nullable=False)
-    block_ce = Column(Unicode(1), nullable=False)
-
-    census_block = relationship('CensusBlock')
-
-    @classmethod
-    def make_key(cls, instance):
-        j = json.dumps(instance.data)
-        return sha1(j).hexdigest()
-
-
-class HomepathListing(Hashable, Recordable, Geometric, Model):
-    __table_args__ = (
-        Index('ix_homepath_listing_location', 'location',
-              postgresql_using='gist'),
-        ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
-                             ['census_block.state_fp',
-                              'census_block.county_fp',
-                              'census_block.tract_ce',
-                              'census_block.block_ce'],
-                             name='fk_homepath_listing_census_block'))
-
-    _key = HashableKey()
-
-    id = Column(Unicode(20), nullable=False, index=True)
-
-    baths = Column(Integer, index=True)
-    beds = Column(Integer, index=True)
-    price = Column(Numeric(18, scale=2), nullable=False, index=True)
-    status = Column(Unicode(20), nullable=False, index=True)
-    image_url = Column(Unicode(300))
-
-    location = Column(Geometry('POINT', 4326, spatial_index=False))
-    entry_date = Column(Date, nullable=False, index=True)
-
-    property_type = Column(Unicode(10), nullable=False, index=True)
-    street = Column(Unicode(200), nullable=False)
-    city = Column(Unicode(100), nullable=False)
-    state = Column(Unicode(8), nullable=False, index=True)
-
-    request_token = Column(Binary(16), index=True)
-    data = Column(JSON)
-
-    state_fp = Column(Unicode(2), nullable=False)
-    county_fp = Column(Unicode(3), nullable=False)
-    tract_ce = Column(Unicode(6), nullable=False)
-    block_ce = Column(Unicode(1), nullable=False)
-
-    census_block = relationship('CensusBlock')
-
-
-class Dimension(Model):
-    __identifiers__ = ('id', 'name')
-
-    id = Column(Unicode(20), primary_key=True)
-    name = Column(Unicode(100), nullable=False)
-
-    segments = relationship('Segment', order_by='Segment.sort_value.asc()')
-
-
-class Segment(Model):
-    __identifiers__ = ('dimension_id', 'id', 'name')
-
-    dimension_id = Column(Unicode(20), ForeignKey('dimension.id'), primary_key=True)
-    id = Column(Unicode(20), primary_key=True)
-    name = Column(Unicode(100), nullable=True)
-
-    numeric_value = Column(Numeric(10, scale=2))
-    string_value = Column(Unicode(100))
-    sort_value = Column(Unicode(10), nullable=False)
-
-    dimension = relationship('Dimension')
-
-    @property
-    def value(self):
-        return self.string_value or self.numeric_value
-
-    @value.setter
-    def value(self, v):
-        try:
-            self.numeric_value = float(v)
-        except ValueError:
-            self.string_value = v
-
-
-class Concept(Model):
-    id = Column(Unicode(20), primary_key=True)
-    name = Column(Unicode(100), nullable=False)
-    description = Column(UnicodeText)
-
-
-class Feature(Model):
-    id = Column(Unicode(20), primary_key=True)
-    name = Column(Unicode(100), nullable=False)
-    description = Column(UnicodeText)
-
-
-class Series(Hashable, Model):
-    __identifiers__ = ('concept_id', 'feature_id', 'duration')
-
-    _key = HashableKey()
-
-    concept_id = Column(Unicode(20), ForeignKey('concept.id'))
-    feature_id = Column(Unicode(20), ForeignKey('feature.id'))
-    duration = Column(Integer, index=True)
-
-    segments = relationship('Segment', secondary='series_segment',
-                            order_by='Segment.sort_value.asc()')
-    concept = relationship('Concept')
-    feature = relationship('Feature')
-    _measures = relationship('Measure', order_by='Measure.date.asc()',
-                             collection_class=attribute_mapped_collection('date'))
-    measures = association_proxy('_measures', 'value',
-                                 creator=lambda d, v: Measure(date=d, value=v))
-
-    @property
-    def name(self):
-        segments = ["{}: {}".format(s.dimension.name, s.name) for s in self.segments]
-        return "{concept.name} {duration}-day {feature.name} - {segments}"\
-            .format(concept=self.concept, duration=self.duration,
-                    feature=self.feature, segments=', '.join(segments))
-
-
-class Measure(Model):
-    series_key = HashableReference('series', primary_key=True)
-    id = Column(Integer, primary_key=True)
-    date = Column(Date, nullable=False, index=True)
-    value = Column(Numeric(20, scale=2), nullable=False, index=True)
 
 
 # http://proximityone.com/dataresources/guide/index.html?tl_2013_stcty_bg.htm
@@ -255,7 +94,8 @@ class CensusBlock(Geometric, Model):
     homepath_listings = relationship('HomepathListing', lazy='dynamic',
                                      order_by='HomepathListing.ctime.asc()')
 
-    series = relationship('Series', secondary='census_block_series')
+    segments = relationship('CensusBlockSegment')
+    analytic_contexts = association_proxy('segments', 'analytic_contexts')
 
     @classmethod
     def get_by_point(cls, point):
@@ -282,21 +122,327 @@ class CensusBlock(Geometric, Model):
                           .get('abbreviation')
 
 
-Table('series_segment', Model.metadata,
-      Column('series_key', Unicode(40), ForeignKey('series.key'), primary_key=True),
+class CraigslistListing(Hashable, Recordable, Geometric, Model):
+    __table_args__ = (
+        Index('ix_craigslist_listing_location', 'location',
+              postgresql_using='gist'),
+        ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
+                             ['census_block.state_fp',
+                              'census_block.county_fp',
+                              'census_block.tract_ce',
+                              'census_block.block_ce'],
+                             name='fk_craigslist_listing_census_block'),
+        Index('ix_craigslist_listing_census_block', 'state_fp', 'county_fp',
+              'tract_ce', 'block_ce'))
+
+    _key = HashableKey()
+
+    id = Column(Unicode(20), nullable=False, index=True)
+    title = Column(UnicodeText, nullable=False)
+    relative_url = Column(Unicode(200), nullable=False)
+    image_thumbnail_url = Column(Unicode(300))
+
+    bedrooms = Column(Integer, index=True)
+    posted_date = Column(Date, nullable=False, index=True)
+    ask = Column(Numeric(12, scale=2), nullable=False, index=True)
+
+    location = Column('location', Geometry('POINT', 4326, spatial_index=False))
+    geocluster_id = Column(Unicode(20), nullable=True, index=True)
+    request_token = Column(Binary(16), index=True)
+
+    subdomain = Column(Unicode(100), nullable=False, index=True)
+    data = Column(JSON)
+
+    state_fp = Column(Unicode(2), nullable=False)
+    county_fp = Column(Unicode(3), nullable=False)
+    tract_ce = Column(Unicode(6), nullable=False)
+    block_ce = Column(Unicode(1), nullable=False)
+
+    census_block = relationship('CensusBlock')
+
+    @classmethod
+    def make_key(cls, instance):
+        j = json.dumps(instance.data)
+        return sha1(j).hexdigest()
+
+
+class HomepathListing(Hashable, Recordable, Geometric, Model):
+    __table_args__ = (
+        Index('ix_homepath_listing_location', 'location',
+              postgresql_using='gist'),
+        ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
+                             ['census_block.state_fp',
+                              'census_block.county_fp',
+                              'census_block.tract_ce',
+                              'census_block.block_ce'],
+                             name='fk_homepath_listing_census_block'),
+        Index('ix_homepath_census_block', 'state_fp', 'county_fp',
+              'tract_ce', 'block_ce'))
+
+    _key = HashableKey()
+
+    id = Column(Unicode(20), nullable=False, index=True)
+
+    baths = Column(Integer, index=True)
+    beds = Column(Integer, index=True)
+    price = Column(Numeric(18, scale=2), nullable=False, index=True)
+    status = Column(Unicode(20), nullable=False, index=True)
+    image_url = Column(Unicode(300))
+
+    location = Column(Geometry('POINT', 4326, spatial_index=False))
+    entry_date = Column(Date, nullable=False, index=True)
+
+    property_type = Column(Unicode(10), nullable=False, index=True)
+    street = Column(Unicode(200), nullable=False)
+    city = Column(Unicode(100), nullable=False)
+    state = Column(Unicode(8), nullable=False, index=True)
+
+    request_token = Column(Binary(16), index=True)
+    data = Column(JSON)
+
+    state_fp = Column(Unicode(2), nullable=False)
+    county_fp = Column(Unicode(3), nullable=False)
+    tract_ce = Column(Unicode(6), nullable=False)
+    block_ce = Column(Unicode(1), nullable=False)
+
+    census_block = relationship('CensusBlock')
+
+
+class Dimension(Model):
+    __identifiers__ = ('id', 'name')
+
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+
+    segments = relationship('Segment', order_by='Segment.sort_value.asc()')
+
+
+class Segment(Model):
+    __identifiers__ = ('dimension_id', 'id', 'name')
+
+    dimension_id = Column(Unicode(20), ForeignKey('dimension.id'), primary_key=True)
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=True)
+
+    numeric_value = Column(Numeric(10, scale=2))
+    string_value = Column(Unicode(100))
+    sort_value = Column(Unicode(16), nullable=False)
+
+    dimension = relationship('Dimension')
+
+    @property
+    def value(self):
+        return self.string_value or self.numeric_value
+
+    @value.setter
+    def value(self, v):
+        try:
+            self.numeric_value = float(v)
+        except ValueError:
+            self.string_value = v
+
+    __mapper_args__ = {
+        'polymorphic_on': dimension_id
+    }
+
+
+class BedroomSegment(Segment):
+    __mapper_args__ = {
+        'polymorphic_identity': 'bedrooms'
+    }
+    __tablename__ = 'segment'
+
+    @property
+    def name(self):
+        if self.id == 'any':
+            return "any bedrooms"
+
+        if self.numeric_value is not None:
+            if self.numeric_value == 1:
+                return "1 bedroom"
+            return "{} bedrooms".format(self.numeric_value)
+
+        if self.string_value is not None:
+            return "{} bedrooms".format(self.string_value)
+
+        raise NotImplementedError()
+
+
+class BathroomsSegment(Segment):
+    __mapper_args__ = {
+        'polymorphic_identity': 'bathrooms'
+    }
+    __tablename__ = 'segment'
+
+    @property
+    def name(self):
+        if self.id == 'any':
+            return "any baths"
+
+        if self.numeric_value is not None:
+            if self.numeric_value == 1:
+                return "1 bath"
+            return "{} baths".format(self.numeric_value)
+
+        if self.string_value is not None:
+            return "{} baths".format(self.string_value)
+
+        raise NotImplementedError()
+
+
+class CensusBlockSegment(Segment):
+    __mapper_args__ = {
+        'polymorphic_identity': 'census_block'
+    }
+    __table_args__ = (
+        ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
+                             ['census_block.state_fp',
+                              'census_block.county_fp',
+                              'census_block.tract_ce',
+                              'census_block.block_ce'],
+                             name='fk_craigslist_listing_census_block'),
+        ForeignKeyConstraint(['dimension_id', 'id'],
+                             ['segment.dimension_id', 'segment.id']),
+        Index('ix_census_block_segment_census_block', 'state_fp', 'county_fp',
+              'tract_ce', 'block_ce'))
+
+    dimension_id = Column(Unicode(20), ForeignKey('dimension.id'), primary_key=True)
+    id = Column(Unicode(20), primary_key=True)
+
+    state_fp = Column(Unicode(2), nullable=False)
+    county_fp = Column(Unicode(3), nullable=False)
+    tract_ce = Column(Unicode(6), nullable=False)
+    block_ce = Column(Unicode(1), nullable=False)
+
+    census_block = relationship('CensusBlock')
+
+
+class Concept(Model):
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+    description = Column(UnicodeText)
+
+    __mapper_args__ = {
+        'polymorphic_on': id
+    }
+
+
+class MedianConcept(Concept):
+    __tablename__ = 'concept'
+    __mapper_args__ = {
+        'polymorphic_identity': 'median'
+    }
+
+    def compute(self, l):
+        return numpy.median(l)
+
+
+class MeanConcept(Concept):
+    __tablename__ = 'concept'
+    __mapper_args__ = {
+        'polymorphic_identity': 'mean'
+    }
+
+    def compute(self, l):
+        return numpy.mean(l)
+
+
+class Feature(Model):
+    id = Column(Unicode(20), primary_key=True)
+    name = Column(Unicode(100), nullable=False)
+    description = Column(UnicodeText)
+
+    __mapper_args__ = {
+        'polymorphic_on': id
+    }
+
+
+class RentalAskFeature(Feature):
+    __tablename__ = 'feature'
+    __mapper_args__ = {
+        'polymorphic_identity': 'rent-ask'
+    }
+
+    def extract_feature(self, l):
+        if isinstance(l, CraigslistListing):
+            return l.ask
+
+        raise NotImplementedError("{} instance does not have {} feature"
+                                  .format(l.__class__.__name__, self.id))
+
+
+class BedroomsFeature(Feature):
+    __tablename__ = 'feature'
+    __mapper_args__ = {
+        'polymorphic_identity': 'bedrooms',
+    }
+
+    def extract_feature(self, l):
+        if isinstance(l, CraigslistListing):
+            return l.bedrooms
+
+        if isinstance(l, HomepathListing):
+            return l.beds
+
+        raise NotImplementedError("{} instance does not have {} feature"
+                                  .format(l.__class__.__name__, self.id))
+
+
+class AnalyticContext(Hashable, Model):
+    _key = HashableKey()
+
+    _series_by_feature = relationship('Series',
+                                      order_by='Series.feature_id.asc(),Series.concept_id.asc()',
+                                      collection_class=attribute_mapped_collection('feature'))
+
+    @property
+    def series(self):
+        series = {}
+        for f, s in self._series_by_feature.items():
+            series.setdefault(f, {}).setdefault(s.concept, []).append(s)
+
+        return series
+
+
+class Series(Hashable, Model):
+    __identifiers__ = ('concept_id', 'feature_id', 'duration')
+
+    _key = HashableKey()
+
+    analytic_context_key = HashableReference('analytic_context')
+    concept_id = Column(Unicode(20), ForeignKey('concept.id'))
+    feature_id = Column(Unicode(20), ForeignKey('feature.id'))
+    duration = Column(Integer, index=True)
+
+    concept = relationship('Concept')
+    feature = relationship('Feature')
+    _measures = relationship('Measure', order_by='Measure.date.asc()',
+                             collection_class=attribute_mapped_collection('date'))
+    measures = association_proxy('_measures', 'value',
+                                 creator=lambda d, v: Measure(date=d, value=v))
+    analytic_context = relationship('AnalyticContext')
+
+    @property
+    def name(self):
+        segments = ["{}: {}".format(s.dimension.name, s.name) for s in self.segments]
+        return "{concept.name} {duration}-day {feature.name} - {segments}"\
+            .format(concept=self.concept, duration=self.duration,
+                    feature=self.feature, segments=', '.join(segments))
+
+
+class Measure(Model):
+    series_key = HashableReference('series', primary_key=True)
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False, index=True)
+    value = Column(Numeric(20, scale=2), nullable=False, index=True)
+
+
+Table('analytic_context_segment', Model.metadata,
+      Column('analytic_context_key', Unicode(40), ForeignKey('series.key'),
+             primary_key=True, index=True),
       Column('dimension_id', Unicode(20), ForeignKey('dimension.id'), primary_key=True),
       Column('segment_id', Unicode(20), primary_key=True),
       ForeignKeyConstraint(['dimension_id', 'segment_id'],
                            ['segment.dimension_id', 'segment.id'],
-                           name='fk_series_segment'))
-
-Table('census_block_series', Model.metadata,
-      Column('state_fp', Unicode(2), primary_key=True),
-      Column('county_fp', Unicode(3), primary_key=True),
-      Column('tract_ce', Unicode(6), primary_key=True),
-      Column('block_ce', Unicode(1), primary_key=True),
-      Column('series_key', Unicode(40), ForeignKey('series.key'), primary_key=True),
-      ForeignKeyConstraint(['state_fp', 'county_fp', 'tract_ce', 'block_ce'],
-                           ['census_block.state_fp', 'census_block.county_fp',
-                            'census_block.tract_ce', 'census_block.block_ce'],
-                           name='fk_census_block_series'))
+                           name='fk_series_segment'),
+      Index('ix_analytic_context_segment', 'dimension_id', 'segment_id'))

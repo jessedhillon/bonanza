@@ -70,7 +70,7 @@ class JsonSearchTask(Task):
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux i686) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/37.0.2062.120 Safari/537.36',
+                      'Chrome/39.0.2171.85 Safari/537.36',
     }
 
     @property
