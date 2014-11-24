@@ -52,6 +52,13 @@ task.queues =
     requests = requests-craigslist-subdomain
 
 [task:request_subdomain]
+proxies = 
+    http://jdhillon:LhYngXZ3@23.81.252.16:29842
+    http://jdhillon:LhYngXZ3@23.106.167.25:29842
+    http://jdhillon:LhYngXZ3@23.81.252.153:29842
+    http://jdhillon:LhYngXZ3@23.106.167.241:29842
+    http://jdhillon:LhYngXZ3@23.81.252.79:29842
+
 task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.rate = 1.0  ; per second
 task.workers = 4
@@ -62,7 +69,14 @@ task.queues =
     listings = listings-craigslist
 
 [task:request_geocluster]
-geocluster_threshold = 20
+proxies = 
+    http://jdhillon:LhYngXZ3@23.81.252.16:29842
+    http://jdhillon:LhYngXZ3@23.106.167.25:29842
+    http://jdhillon:LhYngXZ3@23.81.252.153:29842
+    http://jdhillon:LhYngXZ3@23.106.167.241:29842
+    http://jdhillon:LhYngXZ3@23.81.252.79:29842
+
+geocluster_threshold = 36
 
 task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.workers = 2
@@ -92,6 +106,13 @@ task.queues =
     requests = requests-homepath-results
 
 [task:request_homepath_results]
+proxies = 
+    http://jdhillon:LhYngXZ3@23.81.252.16:29842
+    http://jdhillon:LhYngXZ3@23.106.167.25:29842
+    http://jdhillon:LhYngXZ3@23.81.252.153:29842
+    http://jdhillon:LhYngXZ3@23.106.167.241:29842
+    http://jdhillon:LhYngXZ3@23.81.252.79:29842
+
 task.class = bonanza.tasks.homepath:JsonSearchTask
 task.rate = 1.0  ; per second
 task.workers = 4

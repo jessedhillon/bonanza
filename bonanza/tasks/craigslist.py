@@ -65,12 +65,24 @@ class UrlProducerTask(Task):
 
 class JsonSearchTask(Task):
     geocluster_threshold = 10
+    _proxies = []
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux i686) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/37.0.2062.120 Safari/537.36',
     }
+
+    @property
+    def proxies(self):
+        return self._proxies
+
+    @proxies.setter
+    def proxies(self, v):
+        import pdb; pdb.set_trace()
+        if isinstance(v, basestring):
+            v = map(lambda s: s.strip(), v.strip().split("\n"))
+        self._proxies = v
 
     def run(self):
         try:
@@ -100,7 +112,7 @@ class JsonSearchTask(Task):
             self.acquire_token()
             token = base64.b64encode(self.generate_request_token())
 
-            r = requests.get(url, headers=self.headers)
+            r = requests.get(url, headers=self.headers, proxies=self.proxies)
 
             try:
                 results, query = r.json()
@@ -122,7 +134,7 @@ class JsonSearchTask(Task):
 
             for l in results:
                 if 'GeoCluster' in l:
-                    if int(l['NumPosts']) >= self.geocluster_threshold:
+                    if int(l['NumPosts']) >= int(self.geocluster_threshold):
                         data = {
                             '_token': token,
                             'subdomain': body['subdomain'],
