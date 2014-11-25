@@ -79,10 +79,13 @@ class JsonSearchTask(Task):
 
     @proxies.setter
     def proxies(self, v):
-        import pdb; pdb.set_trace()
         if isinstance(v, basestring):
             v = map(lambda s: s.strip(), v.strip().split("\n"))
         self._proxies = v
+
+    @property
+    def proxy(self):
+        return random.choice(self.proxies)
 
     def run(self):
         try:
@@ -112,7 +115,11 @@ class JsonSearchTask(Task):
             self.acquire_token()
             token = base64.b64encode(self.generate_request_token())
 
-            r = requests.get(url, headers=self.headers, proxies=self.proxies)
+            proxies = {
+                'http': self.proxy,
+                'https': self.proxy,
+            }
+            r = requests.get(url, headers=self.headers, proxies=proxies)
 
             try:
                 results, query = r.json()
