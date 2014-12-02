@@ -1,12 +1,13 @@
 """Configures and runs task workers
 
 Usage:
-    task <task_name> [--workers=<workers>] [--config=<config>] [--arg=<arg>...]
+    task <task_name> [--workers=<workers>] [--config=<config>] [--arg=<arg>...] [--sync]
 
 Options:
     -w <workers>, --workers=<workers>   The number of threads to start
     -c <config>, --config=<config>      The path to the configuration file, [default: ./bonanza.ini]
     -a <arg>, --arg=<arg>               Additional configuration argument
+    -s, --sync                          Run task synchronously
 """
 
 import os
@@ -50,7 +51,6 @@ def main(argv=sys.argv):
 def run_task(arguments, settings):
     task_name = arguments['<task_name>']
     config = tasks.common.configure(arguments['--config'], task_name)
-    workers = int(arguments['--workers'] or config['task.workers'])
 
     args = {}
     for a in arguments['--arg']:
@@ -62,22 +62,32 @@ def run_task(arguments, settings):
                 pass
         args.update(d)
 
-    logger.info("spawning {} worker threads".format(workers))
-    threads = []
-    task = tasks.common.configure_task(task_name, workers)
+    task = tasks.common.configure_task(task_name)
     conn = tasks.common.get_connection(task_name)
-    pool = conn.ChannelPool(workers)
-    for i in range(workers):
+
+    if arguments['--sync']:
+        logger.info("running one worker synchronously")
         conf = config.copy()
         conf.update(args)
-
-        t = task(task_name, i, daemon=True, **conf)
+        t = task(task_name, 0, **conf)
         t.connect(conn.clone())
-        t.start()
-        time.sleep(0.8)
-        threads.append(t)
+        t.run()
+        return
 
-    signal.signal(signal.SIGINT, make_signal_handler(threads))
+    else:
+        threads = []
+        signal.signal(signal.SIGINT, make_signal_handler(threads))
+        workers = int(arguments['--workers'] or config['task.workers'])
+        logger.info("spawning {} worker threads".format(workers))
+        for i in range(workers):
+            conf = config.copy()
+            conf.update(args)
+
+            t = task(task_name, i, daemon=True, **conf)
+            t.connect(conn.clone())
+            t.start()
+            time.sleep(0.8)
+            threads.append(t)
 
     while any([t.is_alive() for t in threads]):
         time.sleep(0.5)

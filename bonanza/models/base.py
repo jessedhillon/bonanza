@@ -94,7 +94,7 @@ class CensusBlock(Geometric, Model):
     homepath_listings = relationship('HomepathListing', lazy='dynamic',
                                      order_by='HomepathListing.ctime.asc()')
 
-    segments = relationship('CensusBlockSegment')
+    segment = relationship('CensusBlockSegment', uselist=False)
     analytic_contexts = association_proxy('segments', 'analytic_contexts')
 
     @classmethod
@@ -254,16 +254,38 @@ class BedroomSegment(Segment):
 
     @property
     def name(self):
-        if self.id == 'any':
+        if self.id == 'all':
             return "any bedrooms"
 
         if self.numeric_value is not None:
             if self.numeric_value == 1:
                 return "1 bedroom"
-            return "{} bedrooms".format(self.numeric_value)
+            return "{:.0f} bedrooms".format(self.numeric_value)
 
         if self.string_value is not None:
             return "{} bedrooms".format(self.string_value)
+
+        raise NotImplementedError()
+
+    def extract_value(self, listing):
+        if isinstance(listing, CraigslistListing):
+            return listing.bedrooms
+
+        raise NotImplementedError()
+
+    def __contains__(self, listing):
+        beds = self.extract_value(listing)
+        if self.id == 'all':
+            return True
+
+        if self.id == 'none':
+            return False
+
+        if self.numeric_value is not None:
+            return beds == self.numeric_value
+
+        if self.string_value == '5+':
+            return beds >= 5
 
         raise NotImplementedError()
 
@@ -276,13 +298,13 @@ class BathroomsSegment(Segment):
 
     @property
     def name(self):
-        if self.id == 'any':
+        if self.id == 'all':
             return "any baths"
 
         if self.numeric_value is not None:
             if self.numeric_value == 1:
                 return "1 bath"
-            return "{} baths".format(self.numeric_value)
+            return "{:.0f} baths".format(self.numeric_value)
 
         if self.string_value is not None:
             return "{} baths".format(self.string_value)
@@ -333,7 +355,9 @@ class MedianConcept(Concept):
         'polymorphic_identity': 'median'
     }
 
-    def compute(self, l):
+    def compute(self, l, default=0.0):
+        if len(l) == 0:
+            return default
         return numpy.median(l)
 
 
@@ -343,7 +367,9 @@ class MeanConcept(Concept):
         'polymorphic_identity': 'mean'
     }
 
-    def compute(self, l):
+    def compute(self, l, default=0.0):
+        if len(l) == 0:
+            return default
         return numpy.mean(l)
 
 
@@ -394,6 +420,7 @@ class AnalyticContext(Hashable, Model):
     _series_by_feature = relationship('Series',
                                       order_by='Series.feature_id.asc(),Series.concept_id.asc()',
                                       collection_class=attribute_mapped_collection('feature'))
+    segments = relationship('Segment', secondary='analytic_context_segment')
 
     @property
     def series(self):
@@ -403,9 +430,15 @@ class AnalyticContext(Hashable, Model):
 
         return series
 
+    @property
+    def dimensions(self):
+        return {s.dimension for s in self.segments}
+
 
 class Series(Hashable, Model):
     __identifiers__ = ('concept_id', 'feature_id', 'duration')
+    __table_args__ = (Index('ix_series_analytic_context_concept_feature_duration',
+                            'analytic_context_key', 'concept_id', 'feature_id', 'duration'),)
 
     _key = HashableKey()
 
@@ -438,7 +471,7 @@ class Measure(Model):
 
 
 Table('analytic_context_segment', Model.metadata,
-      Column('analytic_context_key', Unicode(40), ForeignKey('series.key'),
+      Column('analytic_context_key', Unicode(40), ForeignKey('analytic_context.key'),
              primary_key=True, index=True),
       Column('dimension_id', Unicode(20), ForeignKey('dimension.id'), primary_key=True),
       Column('segment_id', Unicode(20), primary_key=True),

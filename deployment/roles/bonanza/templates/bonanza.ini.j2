@@ -1,3 +1,4 @@
+; vim: set ft=dosini:
 [app:main]
 use = egg:bonanza
 
@@ -61,6 +62,7 @@ proxies =
 
 task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.rate = 1.0  ; per second
+task.capacity= 4.0
 task.workers = 4
 task.exchanges = requests, listings
 task.queues =
@@ -81,6 +83,7 @@ geocluster_threshold = 36
 task.class = bonanza.tasks.craigslist:JsonSearchTask
 task.workers = 2
 task.rate = 0.25
+task.capacity= 2.0
 task.exchanges = requests, listings
 task.queues =
     requests = requests-craigslist-geocluster
