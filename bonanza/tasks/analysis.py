@@ -3,11 +3,10 @@ from datetime import datetime, date, timedelta
 from socket import timeout
 import logging
 
-import numpy
-from sqlalchemy import func
+from sqlalchemy.orm.exc import NoResultFound
 
-from bonanza.models.base import CraigslistListing, HomepathListing, CensusBlock,\
-    Dimension, Series, Feature, Concept
+from bonanza.models.base import CraigslistListing, CensusBlock, Dimension,\
+    Segment, Feature, Concept, Series, AnalyticContext
 from bonanza.tasks import Task
 import bonanza.models as models
 import bonanza.tasks.common as common
@@ -41,8 +40,7 @@ class AnalysisProducerTask(Task):
             common.post_mortem()
 
     def process_blocks(self):
-        threshold = date.today() - timedelta(days=self.threshold)
-        threshold = datetime.combine(threshold, datetime.min.time()).replace(tzinfo=tzutc())
+        d = date.today()
         rental_query = self.session.query(CensusBlock)
 
         count = rental_query.count()
@@ -53,11 +51,13 @@ class AnalysisProducerTask(Task):
             while offset < count:
                 for b in rental_query.limit(500).offset(offset):
                     if self.is_stopped:
-                        break
-                    self.produce_craigslist_block(b, producer)
+                        return
+                    self.produce_craigslist_block(b, d, producer)
                 offset += 500
 
-    def produce_craigslist_block(self, block, producer):
+    def produce_craigslist_block(self, block, date, producer):
+        threshold = date - timedelta(days=self.threshold)
+
         extra = {
             'state_fp': block.state_fp,
             'county_fp': block.county_fp,
@@ -69,9 +69,11 @@ class AnalysisProducerTask(Task):
         data = {
             'listing_type': 'rental',
             'source': 'craigslist',
+            'date': date.strftime("%Y-%m-%d"),
             'census_block': (block.state_fp, block.county_fp, block.tract_ce,
                              block.block_ce),
-            'listings': [l.key for l in block.craigslist_listings]
+            'listings': [l.key for l in block.craigslist_listings
+                         if threshold < l.ctime.date() <= date]
         }
         producer.publish(
             data,
@@ -124,9 +126,9 @@ class CensusBlockAnalysisTask(Task):
 
     def receive(self, body, message):
         block = self.session.query(CensusBlock).get(body['census_block'])
-        today = date.today()
+        d = datetime.strptime(body['date'], "%Y-%m-%d").date()
 
-        dimensions = [self.session.query(Dimension).get('bedrooms')]
+        bedrooms = self.session.query(Dimension).get('bedrooms')
         median = self.session.query(Concept).get('median')
         rent_ask = self.session.query(Feature).get('rent-ask')
 
@@ -138,72 +140,57 @@ class CensusBlockAnalysisTask(Task):
             else:
                 listings = []
 
-            logger.info("processing rental listings for census block")
+        logging.debug("processing {} listings for {}".format(len(listings), block.geo_id))
+
+        for segment in bedrooms.segments:
+            logging.debug("{} - {} {}".format(block.geo_id, segment.dimension.name, segment.name))
+            context = self.get_context_for(block.segment, segment)
+
             for duration in [1, 7, 14, 28]:
-                fact_date = today - timedelta(days=duration)
-                listings = [l for l in listings if fact_date <= l.ctime.date() <= today]
-
-                for d in dimensions:
-                    by_segments = self.listings_by_segments(d, listings)
-
-                    for concept, feature in [(median, rent_ask)]:
-                        for segment, listings in by_segments.items():
-                            series = self.get_series_for_block(block, concept, feature,
-                                                               duration, [segment])
-                            if not series:
-                                series = Series(concept=concept, feature=feature,
-                                                duration=duration, segments=[segment])
-                                block.series.append(series)
-
-                            v = self._compute_concept(listings, concept, feature)
-                            series.measures[fact_date] = v
-                            self.session.add(series)
+                series = self.get_series_for(context, median, rent_ask, duration)
+                interesting = self.filter_listings(listings, d, duration)
+                features = self.extract_features(interesting, segment, rent_ask)
+                v = median.compute(features)
+                series.measures[d] = v
+                if v > 0.0:
+                    logger.info("{!r} adding fact [{}] {} {} {} days -> {}"
+                                .format(context, d, rent_ask.name, median.name, duration, v))
+                self.session.add(series)
 
         self.session.commit()
         message.ack()
 
-    @staticmethod
-    def listings_by_segments(dimension, listings):
-        if dimension.id == 'bedrooms':
-            segments = {s.value: s for s in dimension.segments}
-            by_bedrooms = {s: [] for s in dimension.segments}
-            for l in listings:
-                beds = CensusBlockAnalysisTask._get_bedrooms(l)
-                if beds < 5:
-                    segment = segments.get(beds)
-                else:
-                    segment = segments.get('5+')
-                by_bedrooms.setdefault(segment).append(l)
-            return by_bedrooms
+    def get_context_for(self, *segments):
+        try:
+            q = self.session.query(AnalyticContext)
+            for s in segments:
+                q = q.filter(AnalyticContext.segments.any(Segment.id == s.id))
+
+            return q.one()
+        except NoResultFound:
+            ctx = AnalyticContext()
+            ctx.segments.extend(segments)
+            self.session.add(ctx)
+            return ctx
+
+    def get_series_for(self, context, concept, feature, duration):
+        try:
+            return self.session.query(Series)\
+                       .filter(Series.analytic_context_key == context.key)\
+                       .filter(Series.concept_id == concept.id)\
+                       .filter(Series.feature_id == feature.id)\
+                       .filter(Series.duration == duration)\
+                       .one()
+        except NoResultFound:
+            s = Series(analytic_context=context, concept=concept,
+                       feature=feature, duration=duration)
+            self.session.add(s)
+            return s
 
     @staticmethod
-    def _get_bedrooms(listing):
-        if isinstance(listing, CraigslistListing):
-            return listing.bedrooms
-        elif isinstance(listing, HomepathListing):
-            return listing.beds
+    def filter_listings(listings, date, duration):
+        threshold = date - timedelta(days=duration)
+        return [l for l in listings if threshold < l.ctime.date() <= date]
 
-    @staticmethod
-    def _compute_concept(listings, concept, feature, default=0):
-        if len(listings) == 0:
-            return default
-
-        if concept.id == 'median':
-            op = numpy.median
-        elif concept.id == 'mean':
-            op = numpy.mean
-        features = [CensusBlockAnalysisTask._get_feature(l, feature) for l in listings]
-        return op(features)
-
-    @staticmethod
-    def _get_feature(listing, feature):
-        if isinstance(listing, CraigslistListing):
-            if feature.id == 'rent-ask':
-                return listing.ask
-
-    def get_series_for_block(self, block, concept, feature, duration, segments):
-        for series in block.series:
-            if series.concept == concept and series.feature == feature\
-                    and series.duration == duration:
-                if set(segments) == set(series.segments):
-                    return series
+    def extract_features(self, listings, segment, feature):
+        return [feature.extract_feature(l) for l in listings if l in segment]

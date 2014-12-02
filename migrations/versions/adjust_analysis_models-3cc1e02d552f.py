@@ -42,7 +42,7 @@ def upgrade():
     sa.Column('analytic_context_key', sa.Unicode(length=40), nullable=False),
     sa.Column('dimension_id', sa.Unicode(length=20), nullable=False),
     sa.Column('segment_id', sa.Unicode(length=20), nullable=False),
-    sa.ForeignKeyConstraint(['analytic_context_key'], ['series.key'], name=op.f('fk_analytic_context_segment_analytic_context_key_series')),
+    sa.ForeignKeyConstraint(['analytic_context_key'], ['analytic_context.key'], name=op.f('fk_analytic_context_segment_analytic_context_key_series')),
     sa.ForeignKeyConstraint(['dimension_id', 'segment_id'], ['segment.dimension_id', 'segment.id'], name='fk_series_segment'),
     sa.ForeignKeyConstraint(['dimension_id'], ['dimension.id'], name=op.f('fk_analytic_context_segment_dimension_id_dimension')),
     sa.PrimaryKeyConstraint('analytic_context_key', 'dimension_id', 'segment_id', name=op.f('pk_analytic_context_segment'))
@@ -67,6 +67,7 @@ def upgrade():
     op.create_index(op.f('ix_craigslist_listing_subdomain'), 'craigslist_listing', ['subdomain'], unique=False)
     op.create_index('ix_homepath_census_block', 'homepath_listing', ['state_fp', 'county_fp', 'tract_ce', 'block_ce'], unique=False)
     op.add_column('series', sa.Column('analytic_context_key', Ascii(length=40), nullable=True))
+    op.create_index('ix_series_analytic_context_concept_feature_duration', 'series', ['analytic_context_key', 'concept_id', 'feature_id', 'duration'], unique=False)
     op.alter_column('segment', 'sort_value', type_=sa.Unicode(16))
     ### end Alembic commands ###
     # insert into segment
