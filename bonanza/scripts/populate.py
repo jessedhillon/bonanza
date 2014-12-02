@@ -34,7 +34,7 @@ def main(argv=sys.argv):
         settings = common.configure(config_uri)
 
         logger = logging.getLogger(__name__)
-        populate(arguments, settings)
+        populate()
 
     except Exception:
         if settings is None:
@@ -44,7 +44,7 @@ def main(argv=sys.argv):
         common.post_mortem(settings)
 
 
-def populate(arguments, settings):
+def populate():
     concepts = [{
         'id': u'mean',
         'name': u"Mean"
