@@ -57,7 +57,7 @@ def configure(config_uri, task_name):
     return config
 
 
-def configure_task(task_name, workers):
+def configure_task(task_name):
     global _config
 
     config = _config[task_name]
@@ -85,7 +85,7 @@ def configure_task(task_name, workers):
     if 'rate' in tc:
         tc['rate'] = {
             'rate': float(tc['rate'].strip()),
-            'capacity': workers  # TODO: make this configurable
+            'capacity': float(tc['capacity'])
         }
 
     cls.configure(**tc)
