@@ -75,11 +75,13 @@ class JsonSearchTask(Task):
 
     @property
     def proxies(self):
-        proxy = random.choice(self._proxies)
-        return {
-            'http': proxy,
-            'https': proxy
-        }
+        if self._proxies:
+            proxy = random.choice(self._proxies)
+            return {
+                'http': proxy,
+                'https': proxy
+            }
+        return None
 
     @proxies.setter
     def proxies(self, v):
